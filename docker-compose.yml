@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: taskhub-postgres
+    environment:
+      POSTGRES_DB: taskhub_db
+      POSTGRES_USER: taskhub_user
+      POSTGRES_PASSWORD: taskhub_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - taskhub-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: taskhub-backend
+    environment:
+      NODE_ENV: development
+      PORT: 4000
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: taskhub_db
+      DB_USER: taskhub_user
+      DB_PASSWORD: taskhub_password
+      JWT_SECRET: your-super-secret-jwt-key-change-this-in-production
+      JWT_EXPIRES_IN: 7d
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./backend/src:/app/src
+      - ./backend/package.json:/app/package.json
+      - ./backend/tsconfig.json:/app/tsconfig.json
+    depends_on:
+      - postgres
+    networks:
+      - taskhub-network
+    command: npm run dev
+
+volumes:
+  postgres_data:
+
+networks:
+  taskhub-network:
+    driver: bridge
+
