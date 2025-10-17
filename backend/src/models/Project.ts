@@ -82,6 +82,7 @@ Project.init(
     timestamps: true,
     createdAt: "createdAt",
     updatedAt: "updatedAt",
+    indexes: [{ fields: ["userId"] }],
   }
 );
 

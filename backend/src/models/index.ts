@@ -1,7 +1,37 @@
-// TODO: ここにSequelizeモデルをエクスポートします
-// 例:
-// export { default as User } from './User';
-// export { default as Project } from './Project';
-// export { default as Task } from './Task';
+import Project from "./Project";
+import Task from "./Task";
+import User from "./User";
 
-export {};
+// UserとProjectの関係
+User.hasMany(Project, {
+  foreignKey: "userId",
+  as: "projects",
+  onDelete: "CASCADE",
+});
+Project.belongsTo(User, {
+  foreignKey: "userId",
+  as: "user",
+  onDelete: "CASCADE",
+});
+
+// UserとTaskの関係
+User.hasMany(Task, {
+  foreignKey: "userId",
+  as: "tasks",
+});
+Task.belongsTo(User, {
+  foreignKey: "userId",
+  as: "user",
+});
+
+// ProjectとTaskの関係
+Project.hasMany(Task, {
+  foreignKey: "projectId",
+  as: "tasks",
+});
+Task.belongsTo(Project, {
+  foreignKey: "projectId",
+  as: "project",
+});
+
+export { User, Project, Task };
