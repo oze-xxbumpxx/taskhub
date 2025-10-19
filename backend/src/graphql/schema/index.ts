@@ -1,13 +1,5 @@
-// TODO: ここにGraphQLスキーマを統合します
-// 例:
-// import userSchema from './user';
-// import projectSchema from './project';
-// import taskSchema from './task';
-//
-// export const typeDefs = [userSchema, projectSchema, taskSchema];
+import projectSchema from "./project";
+import taskSchema from "./task";
+import userSchema from "./user";
 
-export const typeDefs = `
-  type Query {
-    hello: String
-  }
-`;
+export const typeDefs = [userSchema, projectSchema, taskSchema].filter(Boolean);
