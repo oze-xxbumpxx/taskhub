@@ -10,6 +10,11 @@ projects: [Project!]!
 tasks: [Task!]!
 }
 
+# 現在のユーザ情報取得
+type Query {
+getUser: User
+user(id: ID!): User
+}
 # User作成用の入力型
 input CreateUserInput {
   email: String!

@@ -1,5 +1,6 @@
 import bcrypt from "bcrypt";
 import { logger } from "./logger";
+import { PasswordValidationResult } from "../types/user";
 
 // パスワードをハッシュ化
 export const hashPassword = async (password: string): Promise<string> => {
@@ -33,7 +34,7 @@ export const verifyPassword = async (
 // パスワードの強度チェック
 export const validatePasswordStrength = (
   password: string
-): { isValid: boolean; errors: string[] } => {
+): PasswordValidationResult => {
   const errors: string[] = [];
   if (password.length < 8) {
     errors.push("Password must be at least 8 characters long");

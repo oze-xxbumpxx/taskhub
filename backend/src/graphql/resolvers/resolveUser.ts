@@ -1,43 +1,64 @@
 import { User } from "../../models";
-import { generateToken } from "../../utils/auth";
+import { authMiddleware, generateToken } from "../../utils/auth";
 import { logger } from "../../utils/logger";
 import {
   hashPassword,
   validatePasswordStrength,
   verifyPassword,
 } from "../../utils/password";
-
-interface CreateUserInput {
-  email: string;
-  password: string;
-  name: string;
-}
-
-interface UserError {
-  field: string;
-  message: string;
-}
-
-interface UserResponse {
-  success: boolean;
-  user?: User;
-  errors?: UserError[];
-}
-
-interface AuthPayload {
-  token: string;
-  user: User;
-}
-
-interface LoginInput {
-  email: string;
-  password: string;
-}
+import {
+  CreateUserInput,
+  UserError,
+  UserResponse,
+  AuthPayload,
+  LoginInput,
+} from "../../types/user";
+import { AuthContext } from "../../types/auth";
 
 // クエリ
 const Query = {
   // 現在のユーザー情報取得
-  me: async (parent: any, args: any, context: any) => {},
+  getUser: async (
+    parent: any,
+    args: any,
+    context: AuthContext
+  ): Promise<User | null> => {
+    try {
+      // JWTトークン検証
+      const authResult = authMiddleware(context);
+      if (!authResult) {
+        throw new Error("Authentication required");
+      }
+
+      // ユーザーIDの取得
+      const userId = (authResult as any).userId;
+      if (!userId || typeof userId !== "string") {
+        throw new Error("Invalid token");
+      }
+
+      // ユーザー情報の取得
+      const user = await User.findByPk(userId);
+      if (!user) {
+        logger.warn("User not found for authenticated token", { userId });
+        throw new Error("User not found");
+      }
+
+      // ログ出力
+      logger.info("User profile accessed", { userId, email: user.email });
+
+      return {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+      } as User;
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      logger.error("Failed to get user profile", { error: err.message });
+      throw err;
+    }
+  },
 
   // 特定のユーザー情報取得
   user: async (parent: any, args: { id: string }, context: any) => {},

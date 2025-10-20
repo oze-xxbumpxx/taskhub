@@ -1,14 +1,7 @@
 import jwt, { SignOptions } from "jsonwebtoken";
 import { config } from "../config/env";
 import { logger } from "./logger";
-
-interface AuthContext {
-  req: {
-    headers: {
-      authorization?: string;
-    };
-  };
-}
+import { AuthContext } from "../types/auth";
 
 // JWTトークンの検証
 export const authenticateUser = (token: string) => {
