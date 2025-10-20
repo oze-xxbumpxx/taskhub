@@ -8,7 +8,10 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "db:migrate": "sequelize-cli db:migrate",
-    "db:migrate:undo": "sequelize-cli db:migrate:undo"
+    "db:migrate:undo": "sequelize-cli db:migrate:undo",
+    "test": "vitest run --reporter=verbose",
+    "test:watch": "vitest",
+    "coverage": "vitest run --coverage"
   },
   "keywords": [
     "task-management",
@@ -36,8 +39,11 @@
     "@types/express": "^4.17.21",
     "@types/jsonwebtoken": "^9.0.5",
     "@types/node": "^20.10.6",
+    "@vitest/coverage-v8": "^3.2.4",
     "sequelize-cli": "^6.6.2",
     "ts-node-dev": "^2.0.0",
-    "typescript": "^5.3.3"
+    "tsx": "^4.20.6",
+    "typescript": "^5.3.3",
+    "vitest": "^3.2.4"
   }
 }
