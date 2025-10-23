@@ -35,18 +35,80 @@ input UpdateTaskInput {
 }
 
 # エラーレスポンス用の型
-type ProjectError {
+type TaskError {
 field: String!
 message: String!
 }
 
-# レスポンス型
-type ProjectResponse {
+# タスクレスポンス型
+type TaskResponse {
 success: Boolean!
-project: Project
-errors: [ProjectError!]
+task: Task
+errors: [TaskError!]
 }
 
+# タスク一覧レスポンス型
+type TaskListResponse {
+success: Boolean!
+tasks: [Task!]
+totalCount: Int
+errors: [TaskError!]
+}
+
+# タスクフィルター型
+input TaskFilters {
+status: TaskStatus
+priority: TaskPriority
+projectId: ID
+dueDateFrom: String
+dueDateTo: String
+}
+
+# タスクソート型
+input TaskSort {
+field: TaskSortField!
+direction: SortDirection!
+}
+
+enum TaskSortField {
+TITLE
+STATUS
+PRIORITY
+DUE_DATE
+CREATED_AT
+UPDATED_AT
+}
+
+enum SortDirection {
+ASC
+DESC
+}
+
+# クエリ型
+extend type Query {
+  # タスク一覧取得
+  getTasks(
+    filters: TaskFilters
+    sort: TaskSort
+    limit: Int
+    offset: Int
+  ): TaskListResponse!
+  
+  # 特定のタスク取得
+  getTask(id: ID!): TaskResponse!
+}
+
+# ミューテーション型
+extend type Mutation {
+  # タスク作成
+  createTask(input: CreateTaskInput!): TaskResponse!
+  
+  # タスク更新
+  updateTask(id: ID!, input: UpdateTaskInput!): TaskResponse!
+  
+  # タスク削除
+  deleteTask(id: ID!): TaskResponse!
+}
 
 # Enum型
 enum TaskStatus {

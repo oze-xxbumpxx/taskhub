@@ -11,7 +11,7 @@ tasks: [Task!]!
 }
 
 # 現在のユーザ情報取得
-type Query {
+extend type Query {
 getUser: User
 user(id: ID!): User
 }

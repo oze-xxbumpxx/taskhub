@@ -4,6 +4,8 @@ import { expressMiddleware } from "@apollo/server/express4";
 import cors from "cors";
 import dotenv from "dotenv";
 import sequelize, { testConnection } from "./config/database";
+import { typeDefs } from "./graphql/schema";
+import { resolvers } from "./graphql/resolvers";
 
 // 環境変数の読み込み
 dotenv.config();
@@ -19,18 +21,10 @@ async function startServer() {
     await sequelize.sync({ alter: false });
     console.log("📊 Database synchronized");
   }
-  // Apollo Serverの初期化（仮）
+  // Apollo Serverの初期化
   const server = new ApolloServer({
-    typeDefs: `
-      type Query {
-        hello: String
-      }
-    `,
-    resolvers: {
-      Query: {
-        hello: () => "Hello from TaskHub API!",
-      },
-    },
+    typeDefs,
+    resolvers,
   });
 
   await server.start();
