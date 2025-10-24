@@ -211,6 +211,62 @@ const Mutation = {
       };
     }
   },
+  // タスク削除
+  deleteTask: async (
+    parent: any,
+    args: { id: string },
+    context: AuthContext
+  ): Promise<TaskResponse> => {
+    try {
+      // 認証チェック
+      const authResult = authMiddleware(context);
+      if (!authResult) {
+        return {
+          success: false,
+          errors: [{ field: "auth", message: "Authentication required" }],
+        };
+      }
+
+      const userId = (authResult as any).userId;
+      if (!userId || typeof userId !== "string") {
+        return {
+          success: false,
+          errors: [{ field: "auth", message: "Invalid token" }],
+        };
+      }
+
+      // タスクの存在確認と所有権チェック
+      const task = await Task.findOne({
+        where: {
+          id: args.id,
+          userId,
+        },
+      });
+      if (!task) {
+        return {
+          success: false,
+          errors: [{ field: "task", message: "Task noto found" }],
+        };
+      }
+      // タスク削除
+      await task.destroy();
+
+      // ログ出力
+      logger.info("Task deleted", { taskId: task.id, userId });
+
+      //　成功レスポンス
+      return {
+        success: true,
+      };
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      logger.error("Failed to delete task", { error: err.message });
+      return {
+        success: false,
+        errors: [{ field: "general", message: "Failed to delete task" }],
+      };
+    }
+  },
 };
 
 // Query リゾルバ
