@@ -1,8 +1,13 @@
-import baseSchema from "./base";
-import projectSchema from "./project";
-import taskSchema from "./task";
-import userSchema from "./user";
+import { projectSchema } from "./project";
+import { taskSchema } from "./task";
+import { userSchema } from "./user";
+import { scalarSchema } from "./scalars";
+import { baseSchema } from "./base";
 
-export const typeDefs = [baseSchema, userSchema, projectSchema, taskSchema]
-  .filter(Boolean)
-  .join("\n");
+export const typeDefs = [
+  scalarSchema,
+  baseSchema,
+  userSchema,
+  projectSchema,
+  taskSchema,
+].filter(Boolean);

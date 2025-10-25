@@ -1,4 +1,4 @@
-import { AuthContext } from "../../types";
+import { AuthContext } from "../../types/auth";
 import { CreateTaskInput, TaskResponse } from "../../types/task";
 import { authMiddleware } from "../../utils/auth";
 import { Project } from "../../models";

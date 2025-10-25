@@ -1,55 +1,54 @@
 import express from "express";
-import { ApolloServer } from "@apollo/server";
-import { expressMiddleware } from "@apollo/server/express4";
 import cors from "cors";
 
 const app = express();
-const PORT = process.env.PORT || 4001;
+const PORT = process.env.PORT || 4000;
 
-// 最小限のGraphQLスキーマ
-const typeDefs = `
-  type Query {
-    hello: String
-  }
-`;
+// ミドルウェアの設定
+app.use(cors());
+app.use(express.json());
 
-const resolvers = {
-  Query: {
-    hello: () => "Hello from TaskHub API!",
-  },
-};
-
-async function startServer() {
-  const server = new ApolloServer({
-    typeDefs,
-    resolvers,
+// ヘルスチェックエンドポイント
+app.get("/health", (_req, res) => {
+  res.json({
+    status: "ok",
+    message: "TaskHub API is running",
+    timestamp: new Date().toISOString(),
   });
-
-  await server.start();
-
-  app.use(cors());
-  app.use(express.json());
-
-  app.use(
-    "/graphql",
-    expressMiddleware(server, {
-      context: async () => {
-        return {};
-      },
-    })
-  );
-
-  app.get("/health", (_, res) => {
-    res.json({ status: "ok", message: "TaskHub API is running" });
-  });
-
-  app.listen(PORT, () => {
-    console.log(`🚀 Server ready at http://localhost:${PORT}/graphql`);
-    console.log(`🏥 Health check at http://localhost:${PORT}/health`);
-  });
-}
-
-startServer().catch((error) => {
-  console.error("Failed to start server:", error);
-  process.exit(1);
 });
+
+// 基本的なAPIエンドポイント
+app.get("/api/status", (_req, res) => {
+  res.json({
+    server: "TaskHub Backend",
+    version: "1.0.0",
+    environment: process.env.NODE_ENV || "development",
+    uptime: process.uptime(),
+  });
+});
+
+// エラーハンドリング
+app.use((err: any, _req: any, res: any, _next: any) => {
+  console.error("Server error:", err);
+  res.status(500).json({
+    error: "Internal Server Error",
+    message: err.message,
+  });
+});
+
+// 404ハンドリング
+app.use("*", (req, res) => {
+  res.status(404).json({
+    error: "Not Found",
+    message: `Route ${req.originalUrl} not found`,
+  });
+});
+
+// サーバー起動
+app.listen(PORT, () => {
+  console.log(`🚀 Simple server ready at http://localhost:${PORT}`);
+  console.log(`🏥 Health check at http://localhost:${PORT}/health`);
+  console.log(`📊 Status check at http://localhost:${PORT}/api/status`);
+});
+
+export default app;

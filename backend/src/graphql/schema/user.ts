@@ -11,10 +11,11 @@ tasks: [Task!]!
 }
 
 # 現在のユーザ情報取得
-extend type Query {
+type Query {
 getUser: User
 user(id: ID!): User
 }
+
 # User作成用の入力型
 input CreateUserInput {
   email: String!
@@ -51,5 +52,15 @@ type UserResponse {
 success: Boolean!
 user: User
 errors: [UserError!]
+}
+
+# ユーザーミューテーション
+type Mutation {
+  createUser(input: CreateUserInput!): UserResponse!
+  register(input: CreateUserInput!): UserResponse!
+  updateUser(input: UpdateUserInput!): UserResponse!
+  deleteUser: UserResponse!
+  login(input: LoginInput!): AuthPayload!
+  logout: Boolean!
 }
 `;

@@ -1,14 +1,6 @@
 export const baseSchema = `
-# 基本のQuery型
+# 基本クエリ
 type Query {
-  hello: String
+  hello: String!
 }
-
-# 基本のMutation型
-type Mutation {
-  # 空のMutation（各スキーマでextendする）
-}
-
-# スカラー型
-scalar DateTime
 `;

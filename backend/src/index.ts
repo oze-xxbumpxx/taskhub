@@ -6,6 +6,7 @@ import dotenv from "dotenv";
 import sequelize, { testConnection } from "./config/database";
 import { typeDefs } from "./graphql/schema";
 import { resolvers } from "./graphql/resolvers";
+import { createAuthContext } from "./utils/auth";
 
 // 環境変数の読み込み
 dotenv.config();
@@ -14,12 +15,26 @@ const app = express();
 const PORT = process.env.PORT || 4000;
 
 async function startServer() {
-  await testConnection();
+  // データベース接続をスキップするオプション
+  const SKIP_DB_CONNECTION = process.env.SKIP_DB_CONNECTION === "true";
 
-  // 開発環境ではテーブルを自動同期（本番では使わない）
-  if (process.env.NODE_ENV === "development") {
-    await sequelize.sync({ alter: false });
-    console.log("📊 Database synchronized");
+  if (!SKIP_DB_CONNECTION) {
+    try {
+      await testConnection();
+
+      // 開発環境ではテーブルを自動同期（本番では使わない）
+      if (process.env.NODE_ENV === "development") {
+        await sequelize.sync({ alter: false });
+        console.log("📊 Database synchronized");
+      }
+    } catch (error) {
+      console.warn(
+        "⚠️ Database connection failed, continuing without database..."
+      );
+      console.warn("To skip database connection, set SKIP_DB_CONNECTION=true");
+    }
+  } else {
+    console.log("⏭️ Skipping database connection");
   }
   // Apollo Serverの初期化
   const server = new ApolloServer({
@@ -38,8 +53,14 @@ async function startServer() {
     "/graphql",
     expressMiddleware(server, {
       context: async ({ req }) => {
-        // TODO: 認証ミドルウェアを追加
-        return { req };
+        // 認証ミドルウェアを実行
+        const authContext = await createAuthContext(req);
+
+        return {
+          req,
+          user: authContext.user,
+          isAuthenticated: authContext.isAuthenticated,
+        };
       },
     })
   );

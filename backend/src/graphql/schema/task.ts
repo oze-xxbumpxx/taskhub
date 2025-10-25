@@ -34,81 +34,34 @@ input UpdateTaskInput {
   projectId: ID
 }
 
+# タスククエリ
+type Query {
+  tasks: [Task!]!
+  task(id: ID!): Task
+  getTask(id: ID!): TaskResponse!
+  getTasks(filters: TaskFilters, sort: TaskSort, pagination: PaginationInput): TaskListResponse!
+}
+
+# タスクミューテーション
+type Mutation {
+  createTask(input: CreateTaskInput!): TaskResponse!
+  updateTask(id: ID!, input: UpdateTaskInput!): TaskResponse!
+  deleteTask(id: ID!): TaskResponse!
+}
+
 # エラーレスポンス用の型
 type TaskError {
 field: String!
 message: String!
 }
 
-# タスクレスポンス型
+# レスポンス型
 type TaskResponse {
 success: Boolean!
 task: Task
 errors: [TaskError!]
 }
 
-# タスク一覧レスポンス型
-type TaskListResponse {
-success: Boolean!
-tasks: [Task!]
-totalCount: Int
-errors: [TaskError!]
-}
-
-# タスクフィルター型
-input TaskFilters {
-status: TaskStatus
-priority: TaskPriority
-projectId: ID
-dueDateFrom: String
-dueDateTo: String
-}
-
-# タスクソート型
-input TaskSort {
-field: TaskSortField!
-direction: SortDirection!
-}
-
-enum TaskSortField {
-TITLE
-STATUS
-PRIORITY
-DUE_DATE
-CREATED_AT
-UPDATED_AT
-}
-
-enum SortDirection {
-ASC
-DESC
-}
-
-# クエリ型
-extend type Query {
-  # タスク一覧取得
-  getTasks(
-    filters: TaskFilters
-    sort: TaskSort
-    limit: Int
-    offset: Int
-  ): TaskListResponse!
-  
-  # 特定のタスク取得
-  getTask(id: ID!): TaskResponse!
-}
-
-# ミューテーション型
-extend type Mutation {
-  # タスク作成
-  createTask(input: CreateTaskInput!): TaskResponse!
-  
-  # タスク更新
-  updateTask(id: ID!, input: UpdateTaskInput!): TaskResponse!
-  
-  # タスク削除
-  deleteTask(id: ID!): TaskResponse!
-}
 
 # Enum型
 enum TaskStatus {
@@ -121,5 +74,50 @@ enum TaskPriority {
 LOW
 MEDIUM
 HIGH
+}
+
+# タスク一覧レスポンス型
+type TaskListResponse {
+  success: Boolean!
+  tasks: [Task!]
+  totalCount: Int
+  errors: [TaskError!]
+}
+
+# タスクフィルター型
+input TaskFilters {
+  status: TaskStatus
+  priority: TaskPriority
+  projectId: ID
+  dueDateFrom: String
+  dueDateTo: String
+}
+
+# タスクソート型
+input TaskSort {
+  field: TaskSortField!
+  direction: SortDirection!
+}
+
+# ページネーション入力型
+input PaginationInput {
+  page: Int
+  limit: Int
+}
+
+# タスクソートフィールド
+enum TaskSortField {
+  title
+  status
+  priority
+  dueDate
+  createdAt
+  updatedAt
+}
+
+# ソート方向
+enum SortDirection {
+  ASC
+  DESC
 }
 `;

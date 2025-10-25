@@ -39,4 +39,27 @@ type ProjectResponse {
   errors: [ProjectError!]
 }
 
+# プロジェクト一覧レスポンス型
+type ProjectListResponse {
+  success: Boolean!
+  projects: [Project!]
+  totalCount: Int
+  errors: [ProjectError!]
+}
+
+# プロジェクトクエリ
+type Query {
+  projects: [Project!]!
+  project(id: ID!): Project
+  getProjects: ProjectListResponse!
+  getProject(id: ID!): ProjectResponse!
+}
+
+# プロジェクトミューテーション
+type Mutation {
+  createProject(input: CreateProjectInput!): ProjectResponse!
+  updateProject(id: ID!, input: UpdateProjectInput!): ProjectResponse!
+  deleteProject(id: ID!): ProjectResponse!
+}
+
 `;
