@@ -22,6 +22,7 @@ User.hasMany(Task, {
 Task.belongsTo(User, {
   foreignKey: "userId",
   as: "user",
+  onDelete: "CASCADE",
 });
 
 // ProjectとTaskの関係

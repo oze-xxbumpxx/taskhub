@@ -1,4 +1,4 @@
-import { User } from "../../models";
+import { Task, User } from "../../models";
 import { authMiddleware, generateToken } from "../../utils/auth";
 import { logger } from "../../utils/logger";
 import {
@@ -14,6 +14,7 @@ import {
   LoginInput,
 } from "../../types/user";
 import { AuthContext } from "../../types/auth";
+import sequelize from "../../config/database";
 
 // クエリ
 const Query = {
@@ -203,9 +204,152 @@ const Mutation = {
     }
   },
   // ユーザー情報更新
-  updateUser: async (parent: any, args: { input: any }, context: any) => {},
+  updateUser: async (
+    _: any,
+    { input }: { input: { name?: string; email?: string } },
+    context: AuthContext
+  ): Promise<UserResponse> => {
+    try {
+      const auth = authMiddleware(context);
+      if (!auth) {
+        return {
+          success: false,
+          errors: [{ field: "auth", message: "Authentication required" }],
+        };
+      }
+
+      const userId = (auth as any).userId;
+      if (!userId || typeof userId !== "string") {
+        return {
+          success: false,
+          errors: [{ field: "auth", message: "Invalid token" }],
+        };
+      }
+
+      const user = await User.findByPk(userId);
+      if (!user) {
+        return {
+          success: false,
+          errors: [{ field: "user", message: "User not found" }],
+        };
+      }
+
+      const updates: Partial<User> = {};
+      if (input.name !== undefined) {
+        const name = String(input.name).trim();
+        if (!name || name.length > 100) {
+          return {
+            success: false,
+            errors: [
+              { field: "name", message: "Name must be 1-100 characters" },
+            ],
+          };
+        }
+        updates.name = name;
+      }
+      if (input.email !== undefined) {
+        const email = String(input.email).trim();
+        if (!email) {
+          return {
+            success: false,
+            errors: [{ field: "email", message: "Email is required" }],
+          };
+        }
+        // 重複チェック
+        const dup = await User.findOne({
+          where: { email },
+        });
+        if (dup && dup.id !== user.id) {
+          return {
+            success: false,
+            errors: [{ field: "email", message: "Email already exists" }],
+          };
+        }
+        updates.email = email;
+      }
+
+      if (Object.keys(updates).length === 0) {
+        return {
+          success: true,
+          user: {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            createdAt: user.createdAt,
+            updatedAt: user.updatedAt,
+          } as User,
+        };
+      }
+
+      await user.update(updates);
+      logger.info("User updated", { userId, updates });
+      return {
+        success: true,
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          createdAt: user.createdAt,
+          updatedAt: user.updatedAt,
+        } as User,
+      };
+    } catch (error: any) {
+      logger.error("Failed to update user", { error: error.message });
+      return {
+        success: false,
+        errors: [{ field: "general", message: "Failed to update user" }],
+      };
+    }
+  },
   // ユーザー削除
-  deleteUser: async (parent: any, args: { input: any }, context: any) => {},
+  deleteUser: async (
+    _: any,
+    __: any,
+    context: AuthContext
+  ): Promise<UserResponse> => {
+    const t = await sequelize.transaction();
+    try {
+      const auth = authMiddleware(context);
+      if (!auth) {
+        return {
+          success: false,
+          errors: [{ field: "auth", message: "Authentication required" }],
+        };
+      }
+      const userId = (auth as any).userId;
+      if (!userId || typeof userId !== "string") {
+        return {
+          success: false,
+          errors: [{ field: "auth", message: "Invalid token" }],
+        };
+      }
+      const user = await User.findByPk(userId, { transaction: t });
+      if (!user) {
+        await t.rollback();
+        return {
+          success: false,
+          errors: [{ field: "user", message: "User not found" }],
+        };
+      }
+      // 　タスク削除
+      await Task.destroy({ where: { id: userId }, transaction: t });
+      // プロジェクトはmodels/indexのCASCADEで削除される
+      // ユーザー削除
+      await user.destroy({ transaction: t });
+      await t.commit();
+      logger.info("User deleted", { userId });
+
+      return { success: true };
+    } catch (error) {
+      await t.rollback();
+      const message = error instanceof Error ? error.message : String(error);
+      logger.error("Failed to delete user", { error: message });
+      return {
+        success: false,
+        errors: [{ field: "general", message: "Failed to delete user" }],
+      };
+    }
+  },
 };
 
 export const userResolvers = {
