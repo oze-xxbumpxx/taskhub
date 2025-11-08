@@ -1,4 +1,5 @@
 import { defineConfig } from "vitest/config";
+import path from "path";
 
 export default defineConfig({
   test: {
@@ -6,6 +7,7 @@ export default defineConfig({
     environment: "node",
     include: ["src/**/*.{test,spec}.ts"],
     exclude: ["node_modules", "dist"],
+    setupFiles: ["./tests/setup.ts"],
     coverage: {
       provider: "v8",
       reporter: ["text", "html", "lcov"],
@@ -17,6 +19,16 @@ export default defineConfig({
         branches: 70,
         statements: 80,
       },
+    },
+  },
+  resolve: {
+    dedupe: ["graphql"],
+    alias: {
+      graphql: path.resolve(__dirname, "node_modules/graphql"),
+      "@graphql-tools/schema": path.resolve(
+        __dirname,
+        "node_modules/@graphql-tools/schema"
+      ),
     },
   },
 });
