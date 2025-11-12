@@ -1,0 +1,716 @@
+---
+alwaysApply: true
+---
+
+## 避けるべき実装パターン
+
+以下の実装パターンは**厳禁**です。コードレビュー時にも重点的にチェックします。
+
+### ❌ 1. 無闇に`as`を連発する
+
+**禁止事項**: 型アサーション（`as`）を多用することは禁止です。型安全性が失われ、実行時エラーの原因になります。
+
+**禁止例**:
+
+```typescript
+// ❌ 禁止: as anyの使用
+const userId = (authResult as any).userId;
+const user = result as User;
+const data = response.data as MyType;
+```
+
+**推奨実装**:
+
+```typescript
+// ✅ 推奨: 型ガードを使用
+function isAuthResult(value: unknown): value is { userId: string } {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "userId" in value &&
+    typeof (value as { userId: unknown }).userId === "string"
+  );
+}
+
+if (isAuthResult(authResult)) {
+  const userId = authResult.userId; // 型安全
+}
+
+// ✅ 推奨: Zodなどのバリデーションライブラリを使用
+const AuthResultSchema = z.object({
+  userId: z.string(),
+});
+const validated = AuthResultSchema.parse(authResult);
+const userId = validated.userId; // 型安全
+```
+
+### ❌ 2. `any`の拡散
+
+**禁止事項**: `any`型の使用は禁止です。TypeScript の型チェックの恩恵を受けられません。
+
+**禁止例**:
+
+```typescript
+// ❌ 禁止: any型の使用
+function getUser(parent: any, args: any, context: any): Promise<any> {
+  const userId = (context as any).userId;
+  return User.findByPk(userId);
+}
+```
+
+**推奨実装**:
+
+```typescript
+// ✅ 推奨: 適切な型を定義
+interface GetUserArgs {
+  id: string;
+}
+
+interface GetUserContext {
+  userId: string;
+  isAuthenticated: boolean;
+}
+
+async function getUser(
+  parent: unknown,
+  args: GetUserArgs,
+  context: GetUserContext
+): Promise<User | null> {
+  const userId = context.userId; // 型安全
+  return User.findByPk(userId);
+}
+```
+
+### ❌ 3. Non-null assertion (`!`)の乱用
+
+**禁止事項**: Non-null assertion (`!`)の使用は禁止です。実行時には保証されません。
+
+**禁止例**:
+
+```typescript
+// ❌ 禁止: !演算子の使用
+const secret = config.jwt.secret!; // もしsecretがundefinedなら実行時エラー
+const user = await User.findByPk(id)!; // もしuserがnullなら実行時エラー
+user!.email; // もしuserがnullなら実行時エラー
+```
+
+**推奨実装**:
+
+```typescript
+// ✅ 推奨: 明示的なチェック
+const secret = config.jwt.secret;
+if (!secret || typeof secret !== "string") {
+  throw new Error("JWT secret is not configured");
+}
+// ここではsecretはstring型として扱える
+
+const user = await User.findByPk(id);
+if (!user) {
+  throw new Error("User not found");
+}
+// ここではuserはUser型として扱える
+const email = user.email; // 型安全
+```
+
+### ❌ 4. 複雑な型のコピペ
+
+**禁止事項**: 型定義のコピペは禁止です。型の整合性が保たれず、変更時に不整合が発生します。
+
+**禁止例**:
+
+```typescript
+// ❌ 禁止: 型定義をコピペ
+type CreateTaskInput = {
+  title: string;
+  description?: string;
+  status: "TODO" | "IN_PROGRESS" | "DONE";
+};
+
+// 別の場所で同じ型をコピペ
+type UpdateTaskInput = {
+  title: string; // コピペミスで必須のまま
+  description?: string;
+  status: "TODO" | "IN_PROGRESS" | "DONE";
+};
+```
+
+**推奨実装**:
+
+```typescript
+// ✅ 推奨: 型の再利用と継承
+type TaskBase = {
+  title: string;
+  description?: string;
+  status: TaskStatus;
+  priority: TaskPriority;
+};
+
+type CreateTaskInput = TaskBase & {
+  projectId?: string;
+};
+
+type UpdateTaskInput = Partial<TaskBase> & {
+  projectId?: string;
+};
+
+// ✅ または、Zodスキーマから型を生成
+const TaskBaseSchema = z.object({
+  title: z.string(),
+  description: z.string().optional(),
+  status: z.enum(["TODO", "IN_PROGRESS", "DONE"]),
+});
+
+type TaskBase = z.infer<typeof TaskBaseSchema>;
+```
+
+### ❌ 5. `as const`の誤用
+
+**禁止事項**: `as const`の誤用は禁止です。適切な場面でのみ使用してください。
+
+**禁止例**:
+
+```typescript
+// ❌ 禁止: 不要なas const
+const config = {
+  port: 4000,
+  env: "development",
+} as const; // これにより、portは4000型、envは"development"型になる
+
+// 後で変更できなくなる
+config.port = 5000; // エラー: 4000型に5000を代入できない
+```
+
+**推奨実装**:
+
+```typescript
+// ✅ 推奨: 適切な使用
+// 1. リテラル型のユニオン型を定義したい場合
+const TaskStatus = {
+  TODO: "TODO",
+  IN_PROGRESS: "IN_PROGRESS",
+  DONE: "DONE",
+} as const;
+
+type TaskStatus = (typeof TaskStatus)[keyof typeof TaskStatus];
+// → "TODO" | "IN_PROGRESS" | "DONE"
+
+// 2. 設定値が変更されないことを保証したい場合
+const API_ENDPOINTS = {
+  USERS: "/api/users",
+  TASKS: "/api/tasks",
+} as const;
+
+// 3. 配列からユニオン型を生成したい場合
+const STATUSES = ["TODO", "IN_PROGRESS", "DONE"] as const;
+type Status = (typeof STATUSES)[number]; // "TODO" | "IN_PROGRESS" | "DONE"
+```
+
+### ❌ 6. ライブラリ型の過信
+
+**禁止事項**: ライブラリの型定義をそのまま使うことは禁止です。ドメイン型を定義して使用してください。
+
+**禁止例**:
+
+```typescript
+// ❌ 禁止: Sequelizeの型をそのまま使用
+import User from "./models/User";
+
+async function getUser(id: string): Promise<User> {
+  const user = await User.findByPk(id);
+  return user; // userはUser | nullの可能性がある
+}
+
+// ❌ 禁止: GraphQLの型をそのまま使用
+import { User } from "./generated/graphql";
+
+function transformUser(user: User) {
+  return {
+    id: user.id,
+    email: user.email,
+    // passwordフィールドも含まれてしまう可能性
+  };
+}
+```
+
+**推奨実装**:
+
+```typescript
+// ✅ 推奨: ドメイン型を定義して使用
+// 1. ドメイン型を定義
+export interface UserDomain {
+  id: string;
+  email: string;
+  name: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// 2. ORMモデルからドメイン型に変換
+function toUserDomain(user: User): UserDomain {
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt,
+    // passwordは意図的に除外
+  };
+}
+
+// 3. リゾルバで使用
+async function getUser(id: string): Promise<UserDomain | null> {
+  const user = await User.findByPk(id);
+  if (!user) {
+    return null;
+  }
+  return toUserDomain(user);
+}
+
+// ✅ 推奨: GraphQL型とドメイン型を分離
+// GraphQLスキーマから生成された型は、APIの入出力にのみ使用
+// ビジネスロジックではドメイン型を使用
+```
+
+### ❌ 7. 二重アサーション禁止
+
+**禁止事項**: 二重アサーション（`as unknown as T`など）の使用は禁止です。型安全性を完全に無視する危険なパターンです。
+
+**禁止例**:
+
+```typescript
+// ❌ 禁止: 二重アサーションの使用
+const user = someValue as unknown as User;
+const data = response as unknown as MyType;
+const result = value as any as TargetType;
+```
+
+**推奨実装**:
+
+```typescript
+// ✅ 推奨: 型ガードを使用
+function isUser(value: unknown): value is User {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "id" in value &&
+    "email" in value &&
+    typeof (value as { id: unknown }).id === "string" &&
+    typeof (value as { email: unknown }).email === "string"
+  );
+}
+
+if (isUser(someValue)) {
+  const user = someValue; // 型安全
+}
+
+// ✅ 推奨: Zodなどのバリデーションライブラリを使用
+const UserSchema = z.object({
+  id: z.string(),
+  email: z.string().email(),
+  name: z.string(),
+});
+
+const validated = UserSchema.parse(someValue);
+const user = validated; // 型安全
+
+// ✅ 推奨: 適切な型変換関数を作成
+function toUser(value: unknown): User {
+  if (!isUser(value)) {
+    throw new Error("Invalid user data");
+  }
+  return value;
+}
+
+const user = toUser(someValue); // 型安全
+```
+
+### ❌ 8. マジックナンバー/マジックストリングの使用
+
+**禁止事項**: 数値や文字列を直接コードに書くことは禁止です。定数として定義し、意味を明確にしてください。
+
+**禁止例**:
+
+```typescript
+// ❌ 禁止: マジックナンバー/マジックストリング
+if (password.length < 8) {
+  // 8という数値の意味が不明確
+}
+
+if (status === "TODO") {
+  // 文字列が直接書かれている
+}
+
+setTimeout(() => {
+  // 3000という数値の意味が不明確
+}, 3000);
+```
+
+**推奨実装**:
+
+```typescript
+// ✅ 推奨: 定数として定義
+const MIN_PASSWORD_LENGTH = 8;
+const MAX_NAME_LENGTH = 100;
+const JWT_EXPIRES_IN = "7d";
+const DB_CONNECTION_TIMEOUT_MS = 3000;
+
+// ステータスは enum または const object で定義
+const TaskStatus = {
+  TODO: "TODO",
+  IN_PROGRESS: "IN_PROGRESS",
+  DONE: "DONE",
+} as const;
+
+type TaskStatus = (typeof TaskStatus)[keyof typeof TaskStatus];
+
+if (password.length < MIN_PASSWORD_LENGTH) {
+  // 意味が明確
+}
+
+if (status === TaskStatus.TODO) {
+  // 型安全で意味が明確
+}
+
+setTimeout(() => {
+  // 意味が明確
+}, DB_CONNECTION_TIMEOUT_MS);
+```
+
+### ❌ 9. 深いネスト（早期リターン推奨）
+
+**禁止事項**: 深いネスト（3 階層以上）は禁止です。早期リターンやガード句を使用して可読性を向上させてください。
+
+**禁止例**:
+
+```typescript
+// ❌ 禁止: 深いネスト
+async function createTask(input: CreateTaskInput): Promise<TaskResponse> {
+  if (input.title) {
+    if (input.title.length > 0) {
+      if (input.title.length <= 100) {
+        if (input.userId) {
+          const user = await User.findByPk(input.userId);
+          if (user) {
+            // 実際の処理（5階層のネスト）
+            return { success: true, task };
+          } else {
+            return {
+              success: false,
+              errors: [{ field: "user", message: "User not found" }],
+            };
+          }
+        } else {
+          return {
+            success: false,
+            errors: [{ field: "userId", message: "User ID required" }],
+          };
+        }
+      } else {
+        return {
+          success: false,
+          errors: [{ field: "title", message: "Title too long" }],
+        };
+      }
+    } else {
+      return {
+        success: false,
+        errors: [{ field: "title", message: "Title required" }],
+      };
+    }
+  } else {
+    return {
+      success: false,
+      errors: [{ field: "title", message: "Title required" }],
+    };
+  }
+}
+```
+
+**推奨実装**:
+
+```typescript
+// ✅ 推奨: 早期リターン（ガード句）を使用
+async function createTask(input: CreateTaskInput): Promise<TaskResponse> {
+  // バリデーションを先に処理（早期リターン）
+  if (!input.title || input.title.trim().length === 0) {
+    return {
+      success: false,
+      errors: [{ field: "title", message: "Title required" }],
+    };
+  }
+
+  if (input.title.length > MAX_TITLE_LENGTH) {
+    return {
+      success: false,
+      errors: [{ field: "title", message: "Title too long" }],
+    };
+  }
+
+  if (!input.userId) {
+    return {
+      success: false,
+      errors: [{ field: "userId", message: "User ID required" }],
+    };
+  }
+
+  const user = await User.findByPk(input.userId);
+  if (!user) {
+    return {
+      success: false,
+      errors: [{ field: "user", message: "User not found" }],
+    };
+  }
+
+  // 実際の処理（ネストが浅い）
+  const task = await Task.create({ ...input, userId: user.id });
+  return { success: true, task };
+}
+```
+
+### ❌ 10. 長すぎる関数（単一責任の原則違反）
+
+**禁止事項**: 1 つの関数が 50 行を超える場合は、複数の関数に分割してください。単一責任の原則に従い、テストしやすく保守しやすいコードにしてください。
+
+**禁止例**:
+
+```typescript
+// ❌ 禁止: 長すぎる関数（100行以上）
+async function registerUser(input: CreateUserInput): Promise<UserResponse> {
+  // バリデーション（20行）
+  if (!input.email) {
+    /* ... */
+  }
+  if (!input.password) {
+    /* ... */
+  }
+  // ... 多くのバリデーション
+
+  // パスワード強度チェック（15行）
+  const errors = [];
+  if (password.length < 8) {
+    /* ... */
+  }
+  // ... 多くのチェック
+
+  // 重複チェック（10行）
+  const existingUser = await User.findOne({
+    /* ... */
+  });
+  // ...
+
+  // パスワードハッシュ化（5行）
+  const hashedPassword = await hashPassword(password);
+  // ...
+
+  // ユーザー作成（20行）
+  const user = await User.create({
+    /* ... */
+  });
+  // ...
+
+  // ログ出力（10行）
+  logger.info(/* ... */);
+  // ...
+
+  // レスポンス作成（20行）
+  return {
+    /* ... */
+  };
+}
+```
+
+**推奨実装**:
+
+```typescript
+// ✅ 推奨: 関数を分割（単一責任の原則）
+function validateUserInput(input: CreateUserInput): UserError[] {
+  const errors: UserError[] = [];
+  if (!input.email) {
+    errors.push({ field: "email", message: "Email required" });
+  }
+  // ... バリデーションロジック
+  return errors;
+}
+
+function validatePasswordStrength(password: string): UserError[] {
+  const errors: UserError[] = [];
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    errors.push({ field: "password", message: "Password too short" });
+  }
+  // ... パスワード強度チェック
+  return errors;
+}
+
+async function checkEmailExists(email: string): Promise<boolean> {
+  const existingUser = await User.findOne({ where: { email } });
+  return existingUser !== null;
+}
+
+async function registerUser(input: CreateUserInput): Promise<UserResponse> {
+  // 各処理を関数に分割
+  const validationErrors = validateUserInput(input);
+  if (validationErrors.length > 0) {
+    return { success: false, errors: validationErrors };
+  }
+
+  const passwordErrors = validatePasswordStrength(input.password);
+  if (passwordErrors.length > 0) {
+    return { success: false, errors: passwordErrors };
+  }
+
+  if (await checkEmailExists(input.email)) {
+    return {
+      success: false,
+      errors: [{ field: "email", message: "Email already exists" }],
+    };
+  }
+
+  const hashedPassword = await hashPassword(input.password);
+  const user = await User.create({ ...input, password: hashedPassword });
+
+  logger.info("User registered", { userId: user.id });
+  return { success: true, user };
+}
+```
+
+### ❌ 11. ハードコードされた値
+
+**禁止事項**: 設定値や環境依存の値を直接コードに書くことは禁止です。環境変数や設定ファイルを使用してください。
+
+**禁止例**:
+
+```typescript
+// ❌ 禁止: ハードコードされた値
+const PORT = 4000;
+const DB_HOST = "localhost";
+const JWT_SECRET = "my-secret-key";
+const API_URL = "http://localhost:4000/api";
+```
+
+**推奨実装**:
+
+```typescript
+// ✅ 推奨: 環境変数や設定ファイルを使用
+// src/config/env.ts
+import { z } from "zod";
+import dotenv from "dotenv";
+
+dotenv.config();
+
+const envSchema = z.object({
+  PORT: z.string().default("4000").transform(Number),
+  DB_HOST: z.string().default("localhost"),
+  JWT_SECRET: z.string().min(32),
+  API_URL: z.string().url(),
+});
+
+export const config = envSchema.parse(process.env);
+
+// 使用例
+const PORT = config.PORT;
+const DB_HOST = config.DB_HOST;
+const JWT_SECRET = config.JWT_SECRET;
+```
+
+### ❌ 12. console.log の直接使用
+
+**禁止事項**: `console.log`、`console.error`、`console.warn`の直接使用は禁止です。プロジェクトのロガー（`logger`）を使用してください。
+
+**禁止例**:
+
+```typescript
+// ❌ 禁止: console.logの直接使用
+console.log("User created:", user);
+console.error("Error occurred:", error);
+console.warn("Warning message");
+```
+
+**推奨実装**:
+
+```typescript
+// ✅ 推奨: loggerを使用
+import { logger } from "../utils/logger";
+
+logger.info("User created", { userId: user.id, email: user.email });
+logger.error("Error occurred", { error: error.message, stack: error.stack });
+logger.warn("Warning message", { context: "user-registration" });
+```
+
+### ❌ 13. エラーハンドリングの不備
+
+**禁止事項**: エラーを適切に処理せず、無視したり、型安全でない方法で処理することは禁止です。
+
+**禁止例**:
+
+```typescript
+// ❌ 禁止: エラーを無視
+try {
+  await someOperation();
+} catch (error) {
+  // エラーを無視
+}
+
+// ❌ 禁止: any型でエラーを処理
+try {
+  await someOperation();
+} catch (error: any) {
+  console.log(error.message); // any型を使用
+}
+```
+
+**推奨実装**:
+
+```typescript
+// ✅ 推奨: 適切なエラーハンドリング
+import { logger } from "../utils/logger";
+
+try {
+  await someOperation();
+} catch (error) {
+  // unknown型で受け取り、型ガードで絞り込む
+  const err = error instanceof Error ? error : new Error(String(error));
+  logger.error("Operation failed", {
+    error: err.message,
+    stack: err.stack,
+    context: "someOperation",
+  });
+  throw new Error("Operation failed"); // または適切なエラーレスポンスを返す
+}
+
+// ✅ 推奨: エラーレスポンス型を定義
+type OperationResult<T> =
+  | { success: true; data: T }
+  | { success: false; error: string; code: string };
+
+async function safeOperation(): Promise<OperationResult<Data>> {
+  try {
+    const data = await someOperation();
+    return { success: true, data };
+  } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    logger.error("Operation failed", { error: err.message });
+    return { success: false, error: err.message, code: "OPERATION_FAILED" };
+  }
+}
+```
+
+## 実装チェックリスト
+
+コード実装時には、以下を必ず確認してください：
+
+- [ ] `as any`を使用していない
+- [ ] `as`型アサーションは最小限で、型ガードやバリデーションで代替できないか検討した
+- [ ] `any`型を使用していない（`unknown`を使用し、型ガードで絞り込んでいる）
+- [ ] Non-null assertion (`!`)を使用していない（明示的な null チェックを行っている）
+- [ ] 型定義をコピペせず、再利用可能な型を定義している
+- [ ] `as const`は適切な場面でのみ使用している
+- [ ] ライブラリの型をそのまま使わず、必要に応じてドメイン型に変換している
+- [ ] 二重アサーション（`as unknown as T`など）を使用していない
+- [ ] マジックナンバー/マジックストリングを使用せず、定数として定義している
+- [ ] 深いネスト（3 階層以上）を避け、早期リターンを使用している
+- [ ] 関数が 50 行を超えないように分割している（単一責任の原則）
+- [ ] ハードコードされた値を避け、環境変数や設定ファイルを使用している
+- [ ] `console.log`の直接使用を避け、`logger`を使用している
+- [ ] エラーハンドリングで`unknown`型を使用し、型ガードで絞り込んでいる
+- [ ] エラーを無視せず、適切に処理・ログ出力している
+- [ ] 関数の引数と戻り値の型が明示されている

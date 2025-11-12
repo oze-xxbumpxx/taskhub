@@ -14,4 +14,11 @@ export const resolvers = {
     ...taskResolvers.Mutation,
     ...projectResolvers.Mutation,
   },
+  LoginResult: {
+    __resolveType(obj: any) {
+      if (typeof obj?.token === "string") return "AuthPayload";
+      if (typeof obj?.success === "boolean") return "UserResponse";
+      return null;
+    },
+  },
 };

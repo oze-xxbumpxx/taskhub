@@ -4,6 +4,8 @@ import { authMiddleware } from "../../utils/auth";
 import { Project } from "../../models";
 import Task, { TaskPriority, TaskStatus } from "../../models/Task";
 import { logger } from "../../utils/logger";
+import sequelize from "../../config/database";
+import { Transaction } from "sequelize";
 
 const Mutation = {
   // タスク作成
@@ -217,6 +219,7 @@ const Mutation = {
     args: { id: string },
     context: AuthContext
   ): Promise<TaskResponse> => {
+    let t: Transaction | null = null;
     try {
       // 認証チェック
       const authResult = authMiddleware(context);
@@ -248,9 +251,10 @@ const Mutation = {
           errors: [{ field: "task", message: "Task noto found" }],
         };
       }
+      t = await sequelize.transaction();
       // タスク削除
-      await task.destroy();
-
+      await Task.destroy({ where: { id: userId }, transaction: t });
+      await t.commit();
       // ログ出力
       logger.info("Task deleted", { taskId: task.id, userId });
 
@@ -259,6 +263,9 @@ const Mutation = {
         success: true,
       };
     } catch (error) {
+      if (t) {
+        await t.rollback();
+      }
       const err = error instanceof Error ? error : new Error(String(error));
       logger.error("Failed to delete task", { error: err.message });
       return {

@@ -54,13 +54,15 @@ user: User
 errors: [UserError!]
 }
 
+union LoginResult = AuthPayload | UserResponse
+
 # ユーザーミューテーション
 type Mutation {
   createUser(input: CreateUserInput!): UserResponse!
   register(input: CreateUserInput!): UserResponse!
   updateUser(input: UpdateUserInput!): UserResponse!
   deleteUser: UserResponse!
-  login(input: LoginInput!): AuthPayload!
+  login(input: LoginInput!): LoginResult!
   logout: Boolean!
 }
 `;
