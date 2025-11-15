@@ -10,6 +10,16 @@ import { logger } from "../../../utils/logger";
 import { userResolvers } from "../resolveUser";
 import { AuthContext, JWTPayload } from "../../../types/auth";
 
+import {
+  asFindOneReturn,
+  asFindByPkReturn,
+  asCreateReturn,
+  makeMinimalUser,
+  makeDestroyableUser,
+  makeAuthContext,
+  makeJWTPayload,
+} from "../../../../tests/helpers";
+
 // モックの設定（最初に配置する必要がある）
 vi.mock("../../../config/database", () => ({
   default: {
@@ -106,8 +116,7 @@ describe("User Resolvers", () => {
       });
       vi.mocked(User.findOne).mockResolvedValue(null);
       vi.mocked(hashPassword).mockResolvedValue("hashed-password");
-      vi.mocked(User.create).mockResolvedValue(mockUser as unknown as User);
-
+      vi.mocked(User.create).mockResolvedValue(asCreateReturn(mockUser));
       const result = await userResolvers.Mutation.register(
         null,
         { input: validInput },
@@ -140,8 +149,7 @@ describe("User Resolvers", () => {
         isValid: true,
         errors: [],
       });
-      vi.mocked(User.findOne).mockResolvedValue(mockUser as unknown as User);
-
+      vi.mocked(User.findOne).mockResolvedValue(asFindOneReturn(mockUser));
       const result = await userResolvers.Mutation.register(
         null,
         { input: validInput },
@@ -190,9 +198,7 @@ describe("User Resolvers", () => {
     };
 
     it("有効な認証情報でログインできること", async () => {
-      vi.mocked(User.findOne).mockResolvedValue(
-        mockUserWithPassword as unknown as User
-      );
+      vi.mocked(User.findOne).mockResolvedValue(asFindOneReturn(mockUser));
       vi.mocked(verifyPassword).mockResolvedValue(true);
       vi.mocked(generateToken).mockReturnValue("test-token");
 
@@ -222,15 +228,13 @@ describe("User Resolvers", () => {
     });
 
     it("ログイン成功はAuthPayload形状を返す", async () => {
-      vi.mocked(User.findOne).mockResolvedValue({
+      const u = makeMinimalUser({
         id: "u1",
         email: "a@b.c",
         password: "h",
-        createdAt: new Date(),
-        updatedAt: new Date(),
         name: "A",
-      } as unknown as User);
-      vi.mocked(verifyPassword).mockResolvedValue(true);
+      });
+      vi.mocked(User.findOne).mockResolvedValue(asFindOneReturn(u));
       vi.mocked(generateToken).mockReturnValue("test-token");
 
       const res = await userResolvers.Mutation.login(
@@ -275,7 +279,7 @@ describe("User Resolvers", () => {
 
     it("パスワードが間違っている場合、エラーを返すこと", async () => {
       vi.mocked(User.findOne).mockResolvedValue(
-        mockUserWithPassword as unknown as User
+        asFindOneReturn(mockUserWithPassword)
       );
       vi.mocked(verifyPassword).mockResolvedValue(false);
 
@@ -294,12 +298,23 @@ describe("User Resolvers", () => {
     });
   });
 
+  describe("Mutation.logout", () => {
+    it("認証済みのユーザーをログアウトすること", async () => {
+      const result = await userResolvers.Mutation.logout();
+
+      expect(result).toBe(true);
+      expect(logger.info).toHaveBeenCalledWith(
+        "User logged out (stateless)",
+        {}
+      );
+    });
+  });
+
   describe("Query.getUser", () => {
     it("認証済みユーザーでユーザー情報を取得できること", async () => {
       const jwtPayload: JWTPayload = { userId: mockUser.id };
       vi.mocked(authMiddleware).mockReturnValue(jwtPayload);
-      vi.mocked(User.findByPk).mockResolvedValue(mockUser as unknown as User);
-
+      vi.mocked(User.findByPk).mockResolvedValue(asFindByPkReturn(mockUser));
       const result = await userResolvers.Query.getUser(null, {}, dummyCtx);
 
       expect(result).toBeDefined();
@@ -331,8 +346,7 @@ describe("User Resolvers", () => {
     };
 
     it("有効なユーザーIDで取得", async () => {
-      vi.mocked(User.findByPk).mockResolvedValue(u as unknown as User);
-
+      vi.mocked(User.findByPk).mockResolvedValue(asFindByPkReturn(u));
       const result = await userResolvers.Query.user(
         null,
         { id: u.id },
@@ -364,6 +378,100 @@ describe("User Resolvers", () => {
         userResolvers.Query.user(null, { id: "" }, dummyCtx)
       ).rejects.toThrow("Invalid user id");
     });
+
+    it("無効トークン（userIdが空文字）でエラー", async () => {
+      const invalidPayload = makeJWTPayload("");
+      vi.mocked(authMiddleware).mockReturnValue(invalidPayload);
+
+      await expect(
+        userResolvers.Query.getUser(null, {}, makeAuthContext("invalid-token"))
+      ).rejects.toThrow("Invalid token");
+
+      expect(logger.error).toHaveBeenCalledWith("Failed to get user profile", {
+        error: "Invalid token",
+      });
+    });
+
+    it("DB未存在時はwarnとerrorの両方をログ出力", async () => {
+      const payload = makeJWTPayload("missing-user");
+      vi.mocked(authMiddleware).mockReturnValue(payload);
+      vi.mocked(User.findByPk).mockResolvedValue(null);
+
+      await expect(
+        userResolvers.Query.getUser(null, {}, makeAuthContext("test-token"))
+      ).rejects.toThrow("User not found");
+
+      expect(logger.warn).toHaveBeenCalledWith(
+        "User not found for authenticated token",
+        { userId: "missing-user" }
+      );
+      expect(logger.error).toHaveBeenCalledWith("Failed to get user profile", {
+        error: "User not found",
+      });
+    });
+
+    it("成功時はerrorログを出力しない", async () => {
+      const payload = makeJWTPayload(mockUser.id);
+      vi.mocked(authMiddleware).mockReturnValue(payload);
+      vi.mocked(User.findByPk).mockResolvedValue(asFindByPkReturn(mockUser));
+
+      await userResolvers.Query.getUser(
+        null,
+        {},
+        makeAuthContext("test-token")
+      );
+
+      expect(logger.error).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("Mutation.createUser", () => {
+    it("registerへ正しく委譲する", async () => {
+      const input = {
+        email: "test@example.com",
+        password: "Password123!",
+        name: "Test User",
+      };
+
+      vi.mocked(validatePasswordStrength).mockReturnValue({
+        isValid: true,
+        errors: [],
+      });
+      vi.mocked(User.findOne).mockResolvedValue(null);
+      vi.mocked(hashPassword).mockResolvedValue("hashed-password");
+      const user = makeMinimalUser({
+        id: "user-1",
+        email: input.email,
+        name: input.name,
+      });
+      vi.mocked(User.create).mockResolvedValue(asCreateReturn(user));
+
+      const result = await userResolvers.Mutation.createUser(
+        null,
+        { input },
+        {}
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.user?.email).toBe(input.email);
+      expect(result.errors).toBeUndefined();
+    });
+
+    it("registerのエラーをそのまま返す", async () => {
+      vi.mocked(validatePasswordStrength).mockReturnValue({
+        isValid: false,
+        errors: ["Password is too weak"],
+      });
+
+      const result = await userResolvers.Mutation.createUser(
+        null,
+        { input: { email: "a@b.c", password: "weak", name: "User" } },
+        {}
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.errors?.[0]?.field).toBe("password");
+    });
   });
 
   describe("Mutation.updateUser", () => {
@@ -384,7 +492,7 @@ describe("User Resolvers", () => {
         Object.assign(record, updates);
         return record;
       });
-      vi.mocked(User.findByPk).mockResolvedValue(record as unknown as User);
+      vi.mocked(User.findByPk).mockResolvedValue(asFindByPkReturn(record));
       vi.mocked(User.findOne).mockResolvedValue(null);
 
       const result = await userResolvers.Mutation.updateUser(
@@ -406,7 +514,7 @@ describe("User Resolvers", () => {
         Object.assign(record, updates);
         return record;
       });
-      vi.mocked(User.findByPk).mockResolvedValue(record as unknown as User);
+      vi.mocked(User.findByPk).mockResolvedValue(asFindByPkReturn(record));
       vi.mocked(User.findOne).mockResolvedValue(null);
 
       const result = await userResolvers.Mutation.updateUser(
@@ -424,8 +532,7 @@ describe("User Resolvers", () => {
       const payload: JWTPayload = { userId };
       vi.mocked(authMiddleware).mockReturnValue(payload);
       const record: any = { ...baseUser(), update: vi.fn() };
-      vi.mocked(User.findByPk).mockResolvedValue(record as unknown as User);
-
+      vi.mocked(User.findByPk).mockResolvedValue(asFindByPkReturn(record));
       const result = await userResolvers.Mutation.updateUser(
         null,
         { input: {} },
@@ -484,8 +591,7 @@ describe("User Resolvers", () => {
       const payload: JWTPayload = { userId };
       vi.mocked(authMiddleware).mockReturnValue(payload);
       const record: any = { ...baseUser(), update: vi.fn() };
-      vi.mocked(User.findByPk).mockResolvedValue(record as unknown as User);
-
+      vi.mocked(User.findByPk).mockResolvedValue(asFindByPkReturn(record));
       const result = await userResolvers.Mutation.updateUser(
         null,
         { input: { name: "   " } },
@@ -501,8 +607,7 @@ describe("User Resolvers", () => {
       const payload: JWTPayload = { userId };
       vi.mocked(authMiddleware).mockReturnValue(payload);
       const record: any = { ...baseUser(), update: vi.fn() };
-      vi.mocked(User.findByPk).mockResolvedValue(record as unknown as User);
-
+      vi.mocked(User.findByPk).mockResolvedValue(asFindByPkReturn(record));
       const result = await userResolvers.Mutation.updateUser(
         null,
         { input: { email: "   " } },
@@ -518,14 +623,13 @@ describe("User Resolvers", () => {
       const payload: JWTPayload = { userId };
       vi.mocked(authMiddleware).mockReturnValue(payload);
       const record: any = { ...baseUser(), update: vi.fn() };
-      vi.mocked(User.findByPk).mockResolvedValue(record as unknown as User);
-      vi.mocked(User.findOne).mockResolvedValue({
+      vi.mocked(User.findByPk).mockResolvedValue(asFindByPkReturn(record));
+      const otherUser = makeMinimalUser({
         id: "other",
         email: "dup@example.com",
-        createdAt: new Date(),
-        updatedAt: new Date(),
         name: "Other",
-      } as unknown as User);
+      });
+      vi.mocked(User.findOne).mockResolvedValue(asFindOneReturn(otherUser));
 
       const result = await userResolvers.Mutation.updateUser(
         null,
@@ -565,15 +669,18 @@ describe("User Resolvers", () => {
       vi.mocked(authMiddleware).mockReturnValue(payload);
 
       const userDestroy = vi.fn().mockResolvedValue(undefined);
-      vi.mocked(User.findByPk).mockResolvedValue({
-        id: userId,
-        destroy: userDestroy,
-        email: "x@y.z",
-        name: "User",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      } as unknown as User);
-      vi.mocked(Task.destroy).mockResolvedValue(3 as unknown as number);
+      const destroyableUser = makeDestroyableUser(
+        {
+          id: userId,
+          email: "x@y.z",
+          name: "User",
+        },
+        userDestroy
+      );
+      vi.mocked(User.findByPk).mockResolvedValue(
+        asFindByPkReturn(destroyableUser)
+      );
+      vi.mocked(Task.destroy).mockResolvedValue(3);
 
       const result = await userResolvers.Mutation.deleteUser(
         null,

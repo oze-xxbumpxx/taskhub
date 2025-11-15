@@ -7,10 +7,20 @@ import { logger } from "../../utils/logger";
 import sequelize from "../../config/database";
 import { Transaction } from "sequelize";
 
+// 型ガードヘルパー: authMiddlewareの戻り値がuserIdを持つか検証
+function hasUserId(v: unknown): v is { userId: string } {
+  return (
+    typeof v === "object" &&
+    v !== null &&
+    typeof (v as { userId?: unknown }).userId === "string" &&
+    (v as { userId: string }).userId.trim().length > 0
+  );
+}
+
 const Mutation = {
   // タスク作成
   createTask: async (
-    parent: any,
+    parent: unknown,
     args: { input: CreateTaskInput },
     context: AuthContext
   ): Promise<TaskResponse> => {
@@ -24,13 +34,13 @@ const Mutation = {
         };
       }
 
-      const userId = (authResult as any).userId;
-      if (!userId || typeof userId !== "string") {
+      if (!hasUserId(authResult)) {
         return {
           success: false,
           errors: [{ field: "auth", message: "Invalid token" }],
         };
       }
+      const userId = authResult.userId;
 
       // 入力値バリデーション
       if (
@@ -102,7 +112,7 @@ const Mutation = {
   },
   // タスク更新
   updateTask: async (
-    parent: any,
+    parent: unknown,
     args: { id: string; input: any },
     context: AuthContext
   ): Promise<TaskResponse> => {
@@ -116,13 +126,13 @@ const Mutation = {
         };
       }
 
-      const userId = (authResult as any).userId;
-      if (!userId || typeof userId !== "string") {
+      if (!hasUserId(authResult)) {
         return {
           success: false,
           errors: [{ field: "auth", message: "Invalid token" }],
         };
       }
+      const userId = authResult.userId;
       // タスクの存在確認と所有権チェック
       const task = await Task.findOne({
         where: {
@@ -215,7 +225,7 @@ const Mutation = {
   },
   // タスク削除
   deleteTask: async (
-    parent: any,
+    parent: unknown,
     args: { id: string },
     context: AuthContext
   ): Promise<TaskResponse> => {
@@ -230,13 +240,13 @@ const Mutation = {
         };
       }
 
-      const userId = (authResult as any).userId;
-      if (!userId || typeof userId !== "string") {
+      if (!hasUserId(authResult)) {
         return {
           success: false,
           errors: [{ field: "auth", message: "Invalid token" }],
         };
       }
+      const userId = authResult.userId;
 
       // タスクの存在確認と所有権チェック
       const task = await Task.findOne({
@@ -280,7 +290,7 @@ const Mutation = {
 const Query = {
   // タスク一覧取得
   getTasks: async (
-    parent: any,
+    parent: unknown,
     args: {
       filters?: any;
       sort?: any;
@@ -298,13 +308,13 @@ const Query = {
         };
       }
 
-      const userId = (authResult as any).userId;
-      if (!userId || typeof userId !== "string") {
+      if (!hasUserId(authResult)) {
         return {
           success: false,
           errors: [{ field: "auth", message: "Invalid token" }],
         };
       }
+      const userId = authResult.userId;
 
       // フィルター条件の構築
       const where: any = { userId };
@@ -357,7 +367,7 @@ const Query = {
   },
 
   // 単一タスク取得
-  getTask: async (parent: any, args: { id: string }, context: AuthContext) => {
+  getTask: async (parent: unknown, args: { id: string }, context: AuthContext) => {
     try {
       // 認証チェック
       const authResult = authMiddleware(context);
@@ -368,13 +378,13 @@ const Query = {
         };
       }
 
-      const userId = (authResult as any).userId;
-      if (!userId || typeof userId !== "string") {
+      if (!hasUserId(authResult)) {
         return {
           success: false,
           errors: [{ field: "auth", message: "Invalid token" }],
         };
       }
+      const userId = authResult.userId;
 
       // タスク取得
       const task = await Task.findOne({

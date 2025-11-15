@@ -9,10 +9,20 @@ import { authMiddleware } from "../../utils/auth";
 import Project from "../../models/Project";
 import { logger } from "../../utils/logger";
 
+// 型ガードヘルパー: authMiddlewareの戻り値がuserIdを持つか検証
+function hasUserId(v: unknown): v is { userId: string } {
+  return (
+    typeof v === "object" &&
+    v !== null &&
+    typeof (v as { userId?: unknown }).userId === "string" &&
+    (v as { userId: string }).userId.trim().length > 0
+  );
+}
+
 const Mutation = {
   // プロジェクト作成
   createProject: async (
-    parent: any,
+    parent: unknown,
     args: { input: CreateProjectInput },
     context: AuthContext
   ): Promise<ProjectResponse> => {
@@ -26,13 +36,13 @@ const Mutation = {
         };
       }
 
-      const userId = (authResult as any).userId;
-      if (!userId || typeof userId !== "string") {
+      if (!hasUserId(authResult)) {
         return {
           success: false,
           errors: [{ field: "auth", message: "Invalid token" }],
         };
       }
+      const userId = authResult.userId;
 
       // 入力値バリデーション
       if (
@@ -95,7 +105,7 @@ const Mutation = {
 
   // プロジェクト更新
   updateProject: async (
-    parent: any,
+    parent: unknown,
     args: { id: string; input: UpdateProjectInput },
     context: AuthContext
   ): Promise<ProjectResponse> => {
@@ -109,13 +119,13 @@ const Mutation = {
         };
       }
 
-      const userId = (authResult as any).userId;
-      if (!userId || typeof userId !== "string") {
+      if (!hasUserId(authResult)) {
         return {
           success: false,
           errors: [{ field: "auth", message: "Invalid token" }],
         };
       }
+      const userId = authResult.userId;
 
       // プロジェクトの存在確認と所有権チェック
       const project = await Project.findOne({
@@ -200,7 +210,7 @@ const Mutation = {
 
   // プロジェクト削除
   deleteProject: async (
-    parent: any,
+    parent: unknown,
     args: { id: string },
     context: AuthContext
   ): Promise<ProjectResponse> => {
@@ -214,13 +224,13 @@ const Mutation = {
         };
       }
 
-      const userId = (authResult as any).userId;
-      if (!userId || typeof userId !== "string") {
+      if (!hasUserId(authResult)) {
         return {
           success: false,
           errors: [{ field: "auth", message: "Invalid token" }],
         };
       }
+      const userId = authResult.userId;
 
       // プロジェクトの存在確認と所有権チェック
       const project = await Project.findOne({
@@ -262,11 +272,11 @@ const Mutation = {
 const Query = {
   // プロジェクト一覧取得
   getProjects: async (
-    parent: any,
+    parent: unknown,
     args: {
-      filters?: any;
-      sort?: any;
-      pagination?: any;
+      filters?: unknown;
+      sort?: unknown;
+      pagination?: unknown;
     },
     context: AuthContext
   ): Promise<ProjectListResponse> => {
@@ -280,35 +290,53 @@ const Query = {
         };
       }
 
-      const userId = (authResult as any).userId;
-      if (!userId || typeof userId !== "string") {
+      if (!hasUserId(authResult)) {
         return {
           success: false,
           errors: [{ field: "auth", message: "Invalid token" }],
         };
       }
+      const userId = authResult.userId;
 
       // フィルター条件の構築
-      const where: any = { userId };
+      const where: { userId: string; name?: string; color?: string } = {
+        userId,
+      };
 
-      if (args.filters?.name) {
-        where.name = args.filters.name;
+      const filters = args.filters as
+        | { name?: string; color?: string }
+        | undefined;
+      if (filters?.name && typeof filters.name === "string") {
+        where.name = filters.name;
       }
-      if (args.filters?.color) {
-        where.color = args.filters.color;
+      if (filters?.color && typeof filters.color === "string") {
+        where.color = filters.color;
       }
 
       // ソート条件の構築
-      const order: any[] = [];
-      if (args.sort?.field && args.sort?.direction) {
-        order.push([args.sort.field, args.sort.direction.toUpperCase()]);
+      const order: [string, string][] = [];
+      const sort = args.sort as
+        | { field?: string; direction?: string }
+        | undefined;
+      if (
+        sort?.field &&
+        typeof sort.field === "string" &&
+        sort?.direction &&
+        typeof sort.direction === "string"
+      ) {
+        order.push([sort.field, sort.direction.toUpperCase()]);
       } else {
         order.push(["createdAt", "DESC"]); // デフォルトソート
       }
 
       // ページネーション
-      const limit = args.pagination?.limit || 20;
-      const offset = args.pagination?.offset || 0;
+      const pagination = args.pagination as
+        | { limit?: number; offset?: number }
+        | undefined;
+      const limit =
+        typeof pagination?.limit === "number" ? pagination.limit : 20;
+      const offset =
+        typeof pagination?.offset === "number" ? pagination.offset : 0;
 
       // プロジェクト取得
       const { count, rows: projects } = await Project.findAndCountAll({
@@ -337,7 +365,7 @@ const Query = {
 
   // 単一プロジェクト取得
   getProject: async (
-    parent: any,
+    parent: unknown,
     args: { id: string },
     context: AuthContext
   ): Promise<ProjectResponse> => {
@@ -351,13 +379,13 @@ const Query = {
         };
       }
 
-      const userId = (authResult as any).userId;
-      if (!userId || typeof userId !== "string") {
+      if (!hasUserId(authResult)) {
         return {
           success: false,
           errors: [{ field: "auth", message: "Invalid token" }],
         };
       }
+      const userId = authResult.userId;
 
       // プロジェクト取得
       const project = await Project.findOne({

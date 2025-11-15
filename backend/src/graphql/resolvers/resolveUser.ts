@@ -15,14 +15,29 @@ import {
 import { AuthContext } from "../../types/auth";
 import sequelize from "../../config/database";
 
+function hasUserId(v: unknown): v is { userId: string } {
+  return (
+    typeof v === "object" &&
+    v !== null &&
+    typeof (v as { userId?: unknown }).userId === "string" &&
+    (v as { userId: string }).userId.trim().length > 0
+  );
+}
+
 // クエリ
 const Query = {
   // 現在のユーザー情報取得
   getUser: async (
-    parent: any,
-    args: any,
+    parent: unknown,
+    args: unknown,
     context: AuthContext
-  ): Promise<User | null> => {
+  ): Promise<{
+    id: string;
+    email: string;
+    name: string;
+    createdAt: Date;
+    updatedAt: Date;
+  } | null> => {
     try {
       // JWTトークン検証
       const authResult = authMiddleware(context);
@@ -30,11 +45,11 @@ const Query = {
         throw new Error("Authentication required");
       }
 
-      // ユーザーIDの取得
-      const userId = (authResult as any).userId;
-      if (!userId || typeof userId !== "string") {
+      // ユーザーIDの取得（型ガードで安全に）
+      if (!hasUserId(authResult)) {
         throw new Error("Invalid token");
       }
+      const userId = authResult.userId;
 
       // ユーザー情報の取得
       const user = await User.findByPk(userId);
@@ -52,7 +67,7 @@ const Query = {
         name: user.name,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
-      } as User;
+      };
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
       logger.error("Failed to get user profile", { error: err.message });
@@ -61,7 +76,7 @@ const Query = {
   },
 
   // 特定のユーザー情報取得
-  user: async (parent: any, args: { id: string }, context: any) => {
+  user: async (parent: unknown, args: { id: string }, context: unknown) => {
     try {
       const id = String(args.id || "").trim();
       if (!id) {
@@ -82,7 +97,7 @@ const Query = {
         name: user.name,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
-      } as User;
+      };
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
       logger.error("Failed to get user profile", { error: err.message });
@@ -95,9 +110,9 @@ const Query = {
 const Mutation = {
   // ユーザー登録
   register: async (
-    parent: any,
+    parent: unknown,
     args: { input: CreateUserInput },
-    context: any
+    context: unknown
   ): Promise<UserResponse> => {
     try {
       const { email, password, name } = args.input;
@@ -149,7 +164,7 @@ const Mutation = {
           name: user.name,
           createdAt: user.createdAt,
           updatedAt: user.updatedAt,
-        } as User,
+        },
       };
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
@@ -163,9 +178,9 @@ const Mutation = {
   },
   // ログイン
   login: async (
-    parent: any,
+    parent: unknown,
     args: { input: LoginInput },
-    context: any
+    context: unknown
   ): Promise<UserResponse | AuthPayload> => {
     try {
       const { email, password } = args.input;
@@ -217,7 +232,7 @@ const Mutation = {
           name: user.name,
           createdAt: user.createdAt,
           updatedAt: user.updatedAt,
-        } as User,
+        },
       };
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
@@ -239,7 +254,8 @@ const Mutation = {
     const hasUserId = (v: unknown): v is { userId: string } =>
       typeof v === "object" &&
       v !== null &&
-      typeof (v as { userId?: unknown }).userId === "string";
+      typeof (v as { userId?: unknown }).userId === "string" &&
+      (v as { userId: string }).userId.trim().length > 0;
 
     try {
       // 認証判定（例外発生＝未認証）
@@ -253,7 +269,7 @@ const Mutation = {
         };
       }
 
-      if (!hasUserId(authResult) || !authResult.userId.trim()) {
+      if (!hasUserId(authResult)) {
         return {
           success: false,
           errors: [{ field: "auth", message: "Invalid token" }],
@@ -261,7 +277,6 @@ const Mutation = {
       }
       const userId = authResult.userId;
 
-      // 対象ユーザー取得
       const user = await User.findByPk(userId);
       if (!user) {
         return {
@@ -270,9 +285,7 @@ const Mutation = {
         };
       }
 
-      // 入力のサニタイズとバリデーション
       const updates: { name?: string; email?: string } = {};
-
       if (Object.prototype.hasOwnProperty.call(input, "name")) {
         const name = String(input.name ?? "").trim();
         if (!name || name.length > 100) {
@@ -285,7 +298,6 @@ const Mutation = {
         }
         updates.name = name;
       }
-
       if (Object.prototype.hasOwnProperty.call(input, "email")) {
         const email = String(input.email ?? "").trim();
         if (!email) {
@@ -294,8 +306,10 @@ const Mutation = {
             errors: [{ field: "email", message: "Email is required" }],
           };
         }
-        // 重複チェック（自身以外との重複）
-        const dup = await User.findOne({ where: { email } });
+        // 重複チェック
+        const dup = await User.findOne({
+          where: { email },
+        });
         if (dup && dup.id !== user.id) {
           return {
             success: false,
@@ -305,7 +319,6 @@ const Mutation = {
         updates.email = email;
       }
 
-      // 変更なしなら現状を返す
       if (Object.keys(updates).length === 0) {
         return {
           success: true,
@@ -319,10 +332,8 @@ const Mutation = {
         };
       }
 
-      // 更新実行
       await user.update(updates);
       logger.info("User updated", { userId, updates });
-
       return {
         success: true,
         user: {
@@ -345,25 +356,28 @@ const Mutation = {
   // ユーザー削除
   // resolveUser.ts の deleteUser を置換
   deleteUser: async (
-    _: any,
-    __: any,
+    _: unknown,
+    __: unknown,
     context: AuthContext
   ): Promise<UserResponse> => {
     try {
-      const auth = authMiddleware(context);
-      if (!auth) {
+      let auth: unknown;
+      try {
+        auth = authMiddleware(context);
+      } catch {
         return {
           success: false,
           errors: [{ field: "auth", message: "Authentication required" }],
         };
       }
-      const userId = (auth as any).userId;
-      if (!userId || typeof userId !== "string") {
+
+      if (!hasUserId(auth)) {
         return {
           success: false,
           errors: [{ field: "auth", message: "Invalid token" }],
         };
       }
+      const userId = auth.userId;
 
       const t = await sequelize.transaction();
       try {
@@ -399,9 +413,9 @@ const Mutation = {
     }
   },
   createUser: async (
-    parent: any,
+    parent: unknown,
     args: { input: CreateUserInput },
-    context: any
+    context: unknown
   ) => {
     return Mutation.register(parent, args, context);
   },
