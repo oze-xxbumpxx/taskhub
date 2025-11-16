@@ -13,13 +13,18 @@ import {
   makeAuthContext,
   makeJWTPayload,
   asTaskArrayReturn,
+  asTaskFindAndCountAllReturn,
+  type TaskFindAndCountNumberResult,
 } from "../../../../tests/helpers";
 
+type FindAndCountAllReturn =
+  | { rows: Task[]; count: number }
+  | { rows: Task[]; count: Array<{ count: number; [key: string]: unknown }> };
+
 type FindAndCountNumberResult = Extract<
-  Awaited<ReturnType<typeof Task.findAndCountAll>>,
+  FindAndCountAllReturn,
   { count: number }
 >;
-
 // モックの設定（最初に配置する必要がある）
 vi.mock("../../../config/database", () => ({
   default: {
@@ -332,17 +337,21 @@ describe("Task Resolvers", () => {
       const sequelizeTasks = tasks
         .map((task) => asTaskFindByPkReturn(task))
         .filter((task): task is Task => task !== null);
-      const findAndCountResult: FindAndCountNumberResult = {
+      const findAndCountResult: TaskFindAndCountNumberResult = {
         count: 2,
         rows: sequelizeTasks,
       };
+
+      vi.mocked(Task.findAndCountAll).mockResolvedValue(
+        asTaskFindAndCountAllReturn(findAndCountResult)
+      );
 
       // 値が崩れていないことを念のため確認
       expect(findAndCountResult.count).toBe(2);
       expect(findAndCountResult.rows).toHaveLength(2);
 
       vi.mocked(Task.findAndCountAll).mockResolvedValue(
-        findAndCountResult as Awaited<ReturnType<typeof Task.findAndCountAll>>
+        asTaskFindAndCountAllReturn(findAndCountResult)
       );
 
       const result = await taskResolvers.Query.getTasks(null, {}, dummyCtx);
@@ -363,7 +372,7 @@ describe("Task Resolvers", () => {
         rows: sequelizeTasks,
       };
       vi.mocked(Task.findAndCountAll).mockResolvedValue(
-        filteredResult as Awaited<ReturnType<typeof Task.findAndCountAll>>
+        asTaskFindAndCountAllReturn(filteredResult)
       );
 
       const result = await taskResolvers.Query.getTasks(

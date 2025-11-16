@@ -72,6 +72,25 @@ export interface DestroyableUser extends MinimalUser {
   destroy: (options?: { transaction?: unknown }) => Promise<void>;
 }
 
+// backend/tests/helpers/typeAdapters.ts の 75-84 行目を以下のように変更
+
+// Task.findAndCountAll の戻り値型（モック環境では取得できないため直接定義）
+export type TaskFindAndCountAllReturn =
+  | { rows: Task[]; count: number }
+  | { rows: Task[]; count: Array<{ count: number; [key: string]: unknown }> };
+
+// count が number のケースのみを抽出した型
+export type TaskFindAndCountNumberResult = Extract<
+  TaskFindAndCountAllReturn,
+  { count: number }
+>;
+
+// 型アダプタ（as unknown as をここ1カ所に隔離）
+export const asTaskFindAndCountAllReturn = (
+  v: TaskFindAndCountNumberResult
+): Awaited<ReturnType<typeof Task.findAndCountAll>> =>
+  v as unknown as Awaited<ReturnType<typeof Task.findAndCountAll>>;
+
 // ユーザーオブジェクトファクトリ（satisfiesで形状保証）
 export function makeMinimalUser(init?: Partial<MinimalUser>): MinimalUser {
   return {
