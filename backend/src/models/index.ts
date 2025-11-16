@@ -1,5 +1,5 @@
 import Project from "./Project";
-import Task from "./Task";
+import Task, { TaskStatus, TaskPriority } from "./Task";
 import User from "./User";
 
 // UserとProjectの関係
@@ -35,4 +35,4 @@ Task.belongsTo(Project, {
   as: "project",
 });
 
-export { User, Project, Task };
+export { User, Project, Task, TaskStatus, TaskPriority };

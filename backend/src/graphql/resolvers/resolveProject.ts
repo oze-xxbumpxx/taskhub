@@ -1,3 +1,6 @@
+import { Project } from "../../models";
+import { authMiddleware } from "../../utils/auth";
+import { logger } from "../../utils/logger";
 import { AuthContext } from "../../types/auth";
 import {
   CreateProjectInput,
@@ -5,9 +8,7 @@ import {
   ProjectResponse,
   ProjectListResponse,
 } from "../../types/project";
-import { authMiddleware } from "../../utils/auth";
-import Project from "../../models/Project";
-import { logger } from "../../utils/logger";
+import sequelize from "../../config/database";
 
 // 型ガードヘルパー: authMiddlewareの戻り値がuserIdを持つか検証
 function hasUserId(v: unknown): v is { userId: string } {
@@ -18,6 +19,158 @@ function hasUserId(v: unknown): v is { userId: string } {
     (v as { userId: string }).userId.trim().length > 0
   );
 }
+
+// Query リゾルバ
+const Query = {
+  // プロジェクト一覧取得
+  getProjects: async (
+    parent: unknown,
+    args: {
+      filters?: unknown;
+      sort?: unknown;
+      pagination?: unknown;
+    },
+    context: AuthContext
+  ): Promise<ProjectListResponse> => {
+    try {
+      // 認証チェック
+      const authResult = authMiddleware(context);
+      if (!authResult) {
+        return {
+          success: false,
+          errors: [{ field: "auth", message: "Authentication required" }],
+        };
+      }
+
+      if (!hasUserId(authResult)) {
+        return {
+          success: false,
+          errors: [{ field: "auth", message: "Invalid token" }],
+        };
+      }
+      const userId = authResult.userId;
+
+      // フィルター条件の構築
+      const where: { userId: string; name?: string; color?: string } = {
+        userId,
+      };
+
+      const filters = args.filters as
+        | { name?: string; color?: string }
+        | undefined;
+      if (filters?.name && typeof filters.name === "string") {
+        where.name = filters.name;
+      }
+      if (filters?.color && typeof filters.color === "string") {
+        where.color = filters.color;
+      }
+
+      // ソート条件の構築
+      const order: [string, string][] = [];
+      const sort = args.sort as
+        | { field?: string; direction?: string }
+        | undefined;
+      if (
+        sort?.field &&
+        typeof sort.field === "string" &&
+        sort?.direction &&
+        typeof sort.direction === "string"
+      ) {
+        order.push([sort.field, sort.direction.toUpperCase()]);
+      } else {
+        order.push(["createdAt", "DESC"]); // デフォルトソート
+      }
+
+      // ページネーション
+      const pagination = args.pagination as
+        | { limit?: number; offset?: number }
+        | undefined;
+      const limit =
+        typeof pagination?.limit === "number" ? pagination.limit : 20;
+      const offset =
+        typeof pagination?.offset === "number" ? pagination.offset : 0;
+
+      // プロジェクト取得
+      const { count, rows: projects } = await Project.findAndCountAll({
+        where,
+        order,
+        limit,
+        offset,
+      });
+
+      logger.info("Projects retrieved", { userId, count });
+
+      return {
+        success: true,
+        projects,
+        totalCount: count,
+      };
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      logger.error("Failed to get projects", { error: err.message });
+      return {
+        success: false,
+        errors: [{ field: "general", message: "Failed to get projects" }],
+      };
+    }
+  },
+
+  // 単一プロジェクト取得
+  getProject: async (
+    parent: unknown,
+    args: { id: string },
+    context: AuthContext
+  ): Promise<ProjectResponse> => {
+    try {
+      // 認証チェック
+      const authResult = authMiddleware(context);
+      if (!authResult) {
+        return {
+          success: false,
+          errors: [{ field: "auth", message: "Authentication required" }],
+        };
+      }
+
+      if (!hasUserId(authResult)) {
+        return {
+          success: false,
+          errors: [{ field: "auth", message: "Invalid token" }],
+        };
+      }
+      const userId = authResult.userId;
+
+      // プロジェクト取得
+      const project = await Project.findOne({
+        where: {
+          id: args.id,
+          userId,
+        },
+      });
+
+      if (!project) {
+        return {
+          success: false,
+          errors: [{ field: "project", message: "Project not found" }],
+        };
+      }
+
+      logger.info("Project retrieved", { projectId: project.id, userId });
+
+      return {
+        success: true,
+        project,
+      };
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      logger.error("Failed to get project", { error: err.message });
+      return {
+        success: false,
+        errors: [{ field: "general", message: "Failed to get project" }],
+      };
+    }
+  },
+};
+
 
 const Mutation = {
   // プロジェクト作成
@@ -263,157 +416,6 @@ const Mutation = {
       return {
         success: false,
         errors: [{ field: "general", message: "Failed to delete project" }],
-      };
-    }
-  },
-};
-
-// Query リゾルバ
-const Query = {
-  // プロジェクト一覧取得
-  getProjects: async (
-    parent: unknown,
-    args: {
-      filters?: unknown;
-      sort?: unknown;
-      pagination?: unknown;
-    },
-    context: AuthContext
-  ): Promise<ProjectListResponse> => {
-    try {
-      // 認証チェック
-      const authResult = authMiddleware(context);
-      if (!authResult) {
-        return {
-          success: false,
-          errors: [{ field: "auth", message: "Authentication required" }],
-        };
-      }
-
-      if (!hasUserId(authResult)) {
-        return {
-          success: false,
-          errors: [{ field: "auth", message: "Invalid token" }],
-        };
-      }
-      const userId = authResult.userId;
-
-      // フィルター条件の構築
-      const where: { userId: string; name?: string; color?: string } = {
-        userId,
-      };
-
-      const filters = args.filters as
-        | { name?: string; color?: string }
-        | undefined;
-      if (filters?.name && typeof filters.name === "string") {
-        where.name = filters.name;
-      }
-      if (filters?.color && typeof filters.color === "string") {
-        where.color = filters.color;
-      }
-
-      // ソート条件の構築
-      const order: [string, string][] = [];
-      const sort = args.sort as
-        | { field?: string; direction?: string }
-        | undefined;
-      if (
-        sort?.field &&
-        typeof sort.field === "string" &&
-        sort?.direction &&
-        typeof sort.direction === "string"
-      ) {
-        order.push([sort.field, sort.direction.toUpperCase()]);
-      } else {
-        order.push(["createdAt", "DESC"]); // デフォルトソート
-      }
-
-      // ページネーション
-      const pagination = args.pagination as
-        | { limit?: number; offset?: number }
-        | undefined;
-      const limit =
-        typeof pagination?.limit === "number" ? pagination.limit : 20;
-      const offset =
-        typeof pagination?.offset === "number" ? pagination.offset : 0;
-
-      // プロジェクト取得
-      const { count, rows: projects } = await Project.findAndCountAll({
-        where,
-        order,
-        limit,
-        offset,
-      });
-
-      logger.info("Projects retrieved", { userId, count });
-
-      return {
-        success: true,
-        projects,
-        totalCount: count,
-      };
-    } catch (error) {
-      const err = error instanceof Error ? error : new Error(String(error));
-      logger.error("Failed to get projects", { error: err.message });
-      return {
-        success: false,
-        errors: [{ field: "general", message: "Failed to get projects" }],
-      };
-    }
-  },
-
-  // 単一プロジェクト取得
-  getProject: async (
-    parent: unknown,
-    args: { id: string },
-    context: AuthContext
-  ): Promise<ProjectResponse> => {
-    try {
-      // 認証チェック
-      const authResult = authMiddleware(context);
-      if (!authResult) {
-        return {
-          success: false,
-          errors: [{ field: "auth", message: "Authentication required" }],
-        };
-      }
-
-      if (!hasUserId(authResult)) {
-        return {
-          success: false,
-          errors: [{ field: "auth", message: "Invalid token" }],
-        };
-      }
-      const userId = authResult.userId;
-
-      // プロジェクト取得
-      const project = await Project.findOne({
-        where: {
-          id: args.id,
-          userId,
-        },
-      });
-
-      if (!project) {
-        return {
-          success: false,
-          errors: [{ field: "project", message: "Project not found" }],
-        };
-      }
-
-      logger.info("Project retrieved", { projectId: project.id, userId });
-
-      return {
-        success: true,
-        project,
-      };
-    } catch (error) {
-      const err = error instanceof Error ? error : new Error(String(error));
-      logger.error("Failed to get project", { error: err.message });
-      return {
-        success: false,
-        errors: [{ field: "general", message: "Failed to get project" }],
       };
     }
   },

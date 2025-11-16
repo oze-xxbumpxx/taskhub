@@ -1,9 +1,8 @@
+import { Task, Project, TaskPriority, TaskStatus } from "../../models";
+import { authMiddleware } from "../../utils/auth";
+import { logger } from "../../utils/logger";
 import { AuthContext } from "../../types/auth";
 import { CreateTaskInput, TaskResponse } from "../../types/task";
-import { authMiddleware } from "../../utils/auth";
-import { Project } from "../../models";
-import Task, { TaskPriority, TaskStatus } from "../../models/Task";
-import { logger } from "../../utils/logger";
 import sequelize from "../../config/database";
 import { Transaction } from "sequelize";
 
@@ -17,6 +16,158 @@ function hasUserId(v: unknown): v is { userId: string } {
   );
 }
 
+// Query リゾルバ
+const Query = {
+  // タスク一覧取得
+  getTasks: async (
+    parent: unknown,
+    args: {
+      filters?: any;
+      sort?: any;
+      pagination?: any;
+    },
+    context: AuthContext
+  ) => {
+    try {
+      // 認証チェック
+      let authResult: unknown;
+      try {
+        authResult = authMiddleware(context);
+      } catch {
+        return {
+          success: false,
+          errors: [{ field: "auth", message: "Authentication required" }],
+        };
+      }
+      if (!authResult) {
+        return {
+          success: false,
+          errors: [{ field: "auth", message: "Authentication required" }],
+        };
+      }
+
+      if (!hasUserId(authResult)) {
+        return {
+          success: false,
+          errors: [{ field: "auth", message: "Invalid token" }],
+        };
+      }
+      const userId = authResult.userId;
+
+      // フィルター条件の構築
+      const where: any = { userId };
+
+      if (args.filters?.status) {
+        where.status = args.filters.status;
+      }
+      if (args.filters?.priority) {
+        where.priority = args.filters.priority;
+      }
+      if (args.filters?.projectId) {
+        where.projectId = args.filters.projectId;
+      }
+
+      // ソート条件の構築
+      const order: any[] = [];
+      if (args.sort?.field && args.sort?.direction) {
+        order.push([args.sort.field, args.sort.direction.toUpperCase()]);
+      } else {
+        order.push(["createdAt", "DESC"]); // デフォルトソート
+      }
+
+      // ページネーション
+      const limit = args.pagination?.limit || 20;
+      const offset = args.pagination?.offset || 0;
+
+      // タスク取得
+      const { count, rows: tasks } = await Task.findAndCountAll({
+        where,
+        order,
+        limit,
+        offset,
+      });
+
+      logger.info("Tasks retrieved", { userId, count });
+
+      return {
+        success: true,
+        tasks,
+        totalCount: count,
+      };
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      logger.error("Failed to get tasks", { error: err.message });
+      return {
+        success: false,
+        errors: [{ field: "general", message: "Failed to get tasks" }],
+      };
+    }
+  },
+
+  // 単一タスク取得
+  getTask: async (
+    parent: unknown,
+    args: { id: string },
+    context: AuthContext
+  ) => {
+    try {
+      // 認証チェック
+      let authResult: unknown;
+      try {
+        authResult = authMiddleware(context);
+      } catch {
+        return {
+          success: false,
+          errors: [{ field: "auth", message: "Authentication required" }],
+        };
+      }
+      if (!authResult) {
+        return {
+          success: false,
+          errors: [{ field: "auth", message: "Authentication required" }],
+        };
+      }
+
+      if (!hasUserId(authResult)) {
+        return {
+          success: false,
+          errors: [{ field: "auth", message: "Invalid token" }],
+        };
+      }
+      const userId = authResult.userId;
+
+      // タスク取得
+      const task = await Task.findOne({
+        where: {
+          id: args.id,
+          userId,
+        },
+      });
+
+      if (!task) {
+        return {
+          success: false,
+          errors: [{ field: "task", message: "Task not found" }],
+        };
+      }
+
+      logger.info("Task retrieved", { taskId: task.id, userId });
+
+      return {
+        success: true,
+        task,
+      };
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      logger.error("Failed to get task", { error: err.message });
+      return {
+        success: false,
+        errors: [{ field: "general", message: "Failed to get task" }],
+      };
+    }
+  },
+};
+
 const Mutation = {
   // タスク作成
   createTask: async (
@@ -26,7 +177,15 @@ const Mutation = {
   ): Promise<TaskResponse> => {
     try {
       // 認証チェック
-      const authResult = authMiddleware(context);
+      let authResult: unknown;
+      try {
+        authResult = authMiddleware(context);
+      } catch {
+        return {
+          success: false,
+          errors: [{ field: "auth", message: "Authentication required" }],
+        };
+      }
       if (!authResult) {
         return {
           success: false,
@@ -263,7 +422,7 @@ const Mutation = {
       }
       t = await sequelize.transaction();
       // タスク削除
-      await Task.destroy({ where: { id: userId }, transaction: t });
+      await task.destroy({ transaction: t });
       await t.commit();
       // ログ出力
       logger.info("Task deleted", { taskId: task.id, userId });
@@ -281,138 +440,6 @@ const Mutation = {
       return {
         success: false,
         errors: [{ field: "general", message: "Failed to delete task" }],
-      };
-    }
-  },
-};
-
-// Query リゾルバ
-const Query = {
-  // タスク一覧取得
-  getTasks: async (
-    parent: unknown,
-    args: {
-      filters?: any;
-      sort?: any;
-      pagination?: any;
-    },
-    context: AuthContext
-  ) => {
-    try {
-      // 認証チェック
-      const authResult = authMiddleware(context);
-      if (!authResult) {
-        return {
-          success: false,
-          errors: [{ field: "auth", message: "Authentication required" }],
-        };
-      }
-
-      if (!hasUserId(authResult)) {
-        return {
-          success: false,
-          errors: [{ field: "auth", message: "Invalid token" }],
-        };
-      }
-      const userId = authResult.userId;
-
-      // フィルター条件の構築
-      const where: any = { userId };
-
-      if (args.filters?.status) {
-        where.status = args.filters.status;
-      }
-      if (args.filters?.priority) {
-        where.priority = args.filters.priority;
-      }
-      if (args.filters?.projectId) {
-        where.projectId = args.filters.projectId;
-      }
-
-      // ソート条件の構築
-      const order: any[] = [];
-      if (args.sort?.field && args.sort?.direction) {
-        order.push([args.sort.field, args.sort.direction.toUpperCase()]);
-      } else {
-        order.push(["createdAt", "DESC"]); // デフォルトソート
-      }
-
-      // ページネーション
-      const limit = args.pagination?.limit || 20;
-      const offset = args.pagination?.offset || 0;
-
-      // タスク取得
-      const { count, rows: tasks } = await Task.findAndCountAll({
-        where,
-        order,
-        limit,
-        offset,
-      });
-
-      logger.info("Tasks retrieved", { userId, count });
-
-      return {
-        success: true,
-        tasks,
-        totalCount: count,
-      };
-    } catch (error) {
-      const err = error instanceof Error ? error : new Error(String(error));
-      logger.error("Failed to get tasks", { error: err.message });
-      return {
-        success: false,
-        errors: [{ field: "general", message: "Failed to get tasks" }],
-      };
-    }
-  },
-
-  // 単一タスク取得
-  getTask: async (parent: unknown, args: { id: string }, context: AuthContext) => {
-    try {
-      // 認証チェック
-      const authResult = authMiddleware(context);
-      if (!authResult) {
-        return {
-          success: false,
-          errors: [{ field: "auth", message: "Authentication required" }],
-        };
-      }
-
-      if (!hasUserId(authResult)) {
-        return {
-          success: false,
-          errors: [{ field: "auth", message: "Invalid token" }],
-        };
-      }
-      const userId = authResult.userId;
-
-      // タスク取得
-      const task = await Task.findOne({
-        where: {
-          id: args.id,
-          userId,
-        },
-      });
-
-      if (!task) {
-        return {
-          success: false,
-          errors: [{ field: "task", message: "Task not found" }],
-        };
-      }
-
-      logger.info("Task retrieved", { taskId: task.id, userId });
-
-      return {
-        success: true,
-        task,
-      };
-    } catch (error) {
-      const err = error instanceof Error ? error : new Error(String(error));
-      logger.error("Failed to get task", { error: err.message });
-      return {
-        success: false,
-        errors: [{ field: "general", message: "Failed to get task" }],
       };
     }
   },

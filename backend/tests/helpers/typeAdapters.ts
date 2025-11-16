@@ -1,12 +1,26 @@
-import { User, Task } from "../../src/models";
+import { User, Task, Project } from "../../src/models";
 import { AuthContext, JWTPayload } from "../../src/types/auth";
 
-// Sequelize戻り値の型定義
+// Sequelize戻り値の型定義（User）
 export type FindOneReturn = Awaited<ReturnType<typeof User.findOne>>;
 export type FindByPkReturn = Awaited<ReturnType<typeof User.findByPk>>;
 export type CreateReturn = Awaited<ReturnType<typeof User.create>>;
 
+// Sequelize戻り値の型定義（Task）
+export type TaskFindOneReturn = Awaited<ReturnType<typeof Task.findOne>>;
+export type TaskFindByPkReturn = Awaited<ReturnType<typeof Task.findByPk>>;
+export type TaskCreateReturn = Awaited<ReturnType<typeof Task.create>>;
+export type TaskArrayReturn = Task[];
+
+// Sequelize戻り値の型定義（Project）
+export type ProjectFindOneReturn = Awaited<ReturnType<typeof Project.findOne>>;
+export type ProjectFindByPkReturn = Awaited<
+  ReturnType<typeof Project.findByPk>
+>;
+export type ProjectCreateReturn = Awaited<ReturnType<typeof Project.create>>;
+
 // 型アダプタ（as unknown as をここ1カ所に隔離）
+// User用
 export const asFindOneReturn = (v: unknown): FindOneReturn =>
   v as FindOneReturn;
 
@@ -14,6 +28,29 @@ export const asFindByPkReturn = (v: unknown): FindByPkReturn =>
   v as FindByPkReturn;
 
 export const asCreateReturn = (v: unknown): CreateReturn => v as CreateReturn;
+
+// Task用
+export const asTaskFindOneReturn = (v: unknown): TaskFindOneReturn =>
+  v as TaskFindOneReturn;
+
+export const asTaskFindByPkReturn = (v: unknown): TaskFindByPkReturn =>
+  v as TaskFindByPkReturn;
+
+export const asTaskCreateReturn = (v: unknown): TaskCreateReturn =>
+  v as TaskCreateReturn;
+
+export const asTaskArrayReturn = (v: unknown): TaskArrayReturn =>
+  v as TaskArrayReturn;
+
+// Project用
+export const asProjectFindOneReturn = (v: unknown): ProjectFindOneReturn =>
+  v as ProjectFindOneReturn;
+
+export const asProjectFindByPkReturn = (v: unknown): ProjectFindByPkReturn =>
+  v as ProjectFindByPkReturn;
+
+export const asProjectCreateReturn = (v: unknown): ProjectCreateReturn =>
+  v as ProjectCreateReturn;
 
 // 最小プロトコル: テストで必要な最小限のUser形状
 export interface MinimalUser {
@@ -36,9 +73,7 @@ export interface DestroyableUser extends MinimalUser {
 }
 
 // ユーザーオブジェクトファクトリ（satisfiesで形状保証）
-export function makeMinimalUser(
-  init?: Partial<MinimalUser>
-): MinimalUser {
+export function makeMinimalUser(init?: Partial<MinimalUser>): MinimalUser {
   return {
     id: "user-1",
     email: "test@example.com",
@@ -95,3 +130,60 @@ export function makeJWTPayload(userId: string): JWTPayload {
   return { userId };
 }
 
+// 最小プロトコル: テストで必要な最小限のTask形状
+export interface MinimalTask {
+  id: string;
+  title: string;
+  description?: string | null;
+  status: string;
+  priority: string;
+  dueDate?: Date | null;
+  projectId?: string | null;
+  userId: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// タスクオブジェクトファクトリ
+export function makeMinimalTask(init?: Partial<MinimalTask>): MinimalTask {
+  return {
+    id: "task-1",
+    title: "Test Task",
+    description: null,
+    status: "TODO",
+    priority: "MEDIUM",
+    dueDate: null,
+    projectId: null,
+    userId: "user-1",
+    createdAt: new Date("2024-01-01"),
+    updatedAt: new Date("2024-01-01"),
+    ...init,
+  } satisfies MinimalTask;
+}
+
+// 最小プロトコル: テストで必要な最小限のProject形状
+export interface MinimalProject {
+  id: string;
+  name: string;
+  description?: string | null;
+  color?: string | null;
+  userId: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// プロジェクトオブジェクトファクトリ
+export function makeMinimalProject(
+  init?: Partial<MinimalProject>
+): MinimalProject {
+  return {
+    id: "project-1",
+    name: "Test Project",
+    description: null,
+    color: null,
+    userId: "user-1",
+    createdAt: new Date("2024-01-01"),
+    updatedAt: new Date("2024-01-01"),
+    ...init,
+  } satisfies MinimalProject;
+}

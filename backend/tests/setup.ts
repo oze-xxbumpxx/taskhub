@@ -29,21 +29,6 @@ vi.mock("../src/config/database", () => ({
   testConnection: vi.fn(),
 }));
 
-// TaskとProjectのリゾルバをモック化（モデルの初期化を回避）
-vi.mock("../src/graphql/resolvers/resolveTask", () => ({
-  taskResolvers: {
-    Query: {},
-    Mutation: {},
-  },
-}));
-
-vi.mock("../src/graphql/resolvers/resolveProject", () => ({
-  projectResolvers: {
-    Query: {},
-    Mutation: {},
-  },
-}));
-
 // モデルのモック
 vi.mock("../src/models", () => ({
   User: {
@@ -66,4 +51,3 @@ vi.mock("../src/models", () => ({
     belongsTo: vi.fn(),
   },
 }));
-
