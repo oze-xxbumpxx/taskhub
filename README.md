@@ -204,6 +204,7 @@ npm run db:migrate:undo
 - 例外系は `unknown` を受け取り型絞り込みで検証
 - 期待値は具体化（`toBeDefined` より、フィールド比較を優先）
 - 外部依存はすべてモック。戻り値の型を固定する（成功/失敗両系統）
+- **型アダプタヘルパー**: `backend/tests/helpers/typeAdapters.ts`に型アサーションを集約し、テストコードから二重アサーション（`as unknown as T`）を排除
 
 ### 例: UserResponse の型安全化（判別共用体）
 
@@ -211,6 +212,36 @@ npm run db:migrate:undo
 type UserSuccess = { success: true; user: User; errors?: never };
 type UserFailure = { success: false; user?: never; errors: UserError[] };
 export type UserResponse = UserSuccess | UserFailure;
+```
+
+### テスト用型アダプタの使用方法
+
+二重アサーション（`as unknown as T`）を排除し、型安全性を保つため、`backend/tests/helpers/typeAdapters.ts`を使用します。
+
+```typescript
+import {
+  asFindOneReturn,
+  asFindByPkReturn,
+  makeMinimalUser,
+  makeUpdatableUser,
+  makeAuthContext,
+  makeJWTPayload,
+} from "../../../../tests/helpers";
+
+// ✅ 良い例: satisfies + 単一アサーション
+const user = makeMinimalUser({ id: "user-123", email: "test@example.com" });
+vi.mocked(User.findOne).mockResolvedValue(asFindOneReturn(user));
+
+// ✅ 良い例: 更新可能なユーザー
+const record = makeUpdatableUser({ id: "user-123", name: "Old Name" });
+vi.mocked(User.findByPk).mockResolvedValue(asFindByPkReturn(record));
+
+// ✅ 良い例: 認証コンテキスト
+const ctx = makeAuthContext("test-token");
+vi.mocked(authMiddleware).mockReturnValue(makeJWTPayload("user-123"));
+
+// ❌ 悪い例: 二重アサーション
+vi.mocked(User.findOne).mockResolvedValue(user as unknown as User);
 ```
 
 この方針に沿って「型を明確に書く」実装・レビューを継続します。
