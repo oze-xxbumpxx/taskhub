@@ -487,11 +487,13 @@ describe("User Resolvers", () => {
     it("name更新が成功する", async () => {
       const payload: JWTPayload = { userId };
       vi.mocked(authMiddleware).mockReturnValue(payload);
-      let record: any = { ...baseUser() };
-      record.update = vi.fn(async (updates: any) => {
-        Object.assign(record, updates);
-        return record;
-      });
+      const record = {
+        ...baseUser(),
+        update: vi.fn(async (updates: { name?: string; email?: string }) => {
+          Object.assign(record, updates);
+          return record;
+        }),
+      };
       vi.mocked(User.findByPk).mockResolvedValue(asFindByPkReturn(record));
       vi.mocked(User.findOne).mockResolvedValue(null);
 
@@ -509,11 +511,13 @@ describe("User Resolvers", () => {
     it("email更新が成功する（重複なし）", async () => {
       const payload: JWTPayload = { userId };
       vi.mocked(authMiddleware).mockReturnValue(payload);
-      let record: any = { ...baseUser() };
-      record.update = vi.fn(async (updates: any) => {
-        Object.assign(record, updates);
-        return record;
-      });
+      const record = {
+        ...baseUser(),
+        update: vi.fn(async (updates: { name?: string; email?: string }) => {
+          Object.assign(record, updates);
+          return record;
+        }),
+      };
       vi.mocked(User.findByPk).mockResolvedValue(asFindByPkReturn(record));
       vi.mocked(User.findOne).mockResolvedValue(null);
 
@@ -531,7 +535,7 @@ describe("User Resolvers", () => {
     it("入力なしでもsuccess: trueで変更しない", async () => {
       const payload: JWTPayload = { userId };
       vi.mocked(authMiddleware).mockReturnValue(payload);
-      const record: any = { ...baseUser(), update: vi.fn() };
+      const record = { ...baseUser(), update: vi.fn() };
       vi.mocked(User.findByPk).mockResolvedValue(asFindByPkReturn(record));
       const result = await userResolvers.Mutation.updateUser(
         null,
@@ -590,7 +594,7 @@ describe("User Resolvers", () => {
     it("nameが不正（空白のみ）ならエラー", async () => {
       const payload: JWTPayload = { userId };
       vi.mocked(authMiddleware).mockReturnValue(payload);
-      const record: any = { ...baseUser(), update: vi.fn() };
+      const record = { ...baseUser(), update: vi.fn() };
       vi.mocked(User.findByPk).mockResolvedValue(asFindByPkReturn(record));
       const result = await userResolvers.Mutation.updateUser(
         null,
@@ -606,7 +610,7 @@ describe("User Resolvers", () => {
     it("emailが不正（空白のみ）ならエラー", async () => {
       const payload: JWTPayload = { userId };
       vi.mocked(authMiddleware).mockReturnValue(payload);
-      const record: any = { ...baseUser(), update: vi.fn() };
+      const record = { ...baseUser(), update: vi.fn() };
       vi.mocked(User.findByPk).mockResolvedValue(asFindByPkReturn(record));
       const result = await userResolvers.Mutation.updateUser(
         null,
@@ -622,7 +626,7 @@ describe("User Resolvers", () => {
     it("email重複ならエラー", async () => {
       const payload: JWTPayload = { userId };
       vi.mocked(authMiddleware).mockReturnValue(payload);
-      const record: any = { ...baseUser(), update: vi.fn() };
+      const record = { ...baseUser(), update: vi.fn() };
       vi.mocked(User.findByPk).mockResolvedValue(asFindByPkReturn(record));
       const otherUser = makeMinimalUser({
         id: "other",

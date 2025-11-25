@@ -136,9 +136,7 @@ describe("Task Resolvers", () => {
     });
 
     it("未認証の場合エラーを返すこと", async () => {
-      vi.mocked(authMiddleware).mockImplementation(() => {
-        throw new Error("Authentication required");
-      });
+      vi.mocked(authMiddleware).mockImplementation(() => null as any);
 
       const result = await taskResolvers.Mutation.createTask(
         null,
@@ -232,7 +230,7 @@ describe("Task Resolvers", () => {
     it("タスクの更新が成功すること", async () => {
       vi.mocked(authMiddleware).mockReturnValue(makeJWTPayload(userId));
       const taskUpdate = vi.fn().mockResolvedValue(undefined);
-      const task: any = {
+      const task = {
         ...makeMinimalTask({ id: taskId, userId, title: "Old Title" }),
         update: taskUpdate,
       };
@@ -269,8 +267,9 @@ describe("Task Resolvers", () => {
 
     it("他のユーザーのタスクは更新できないこと", async () => {
       vi.mocked(authMiddleware).mockReturnValue(makeJWTPayload(userId));
-      vi.mocked(Task.findOne).mockImplementation(async (options: any) => {
-        expect(options?.where?.userId).toBe(userId);
+      vi.mocked(Task.findOne).mockImplementation(async (options: unknown) => {
+        const opts = options as { where?: { userId?: string } } | undefined;
+        expect(opts?.where?.userId).toBe(userId);
         return null;
       });
 
@@ -291,7 +290,7 @@ describe("Task Resolvers", () => {
     it("タスクの削除が成功すること", async () => {
       vi.mocked(authMiddleware).mockReturnValue(makeJWTPayload(userId));
       const taskDestroy = vi.fn().mockResolvedValue(undefined);
-      const task: any = {
+      const task = {
         ...makeMinimalTask({ id: taskId, userId }),
         destroy: taskDestroy,
       };
@@ -428,8 +427,9 @@ describe("Task Resolvers", () => {
 
     it("他のユーザーのタスクは取得できないこと", async () => {
       vi.mocked(authMiddleware).mockReturnValue(makeJWTPayload(userId));
-      vi.mocked(Task.findOne).mockImplementation(async (options: any) => {
-        expect(options?.where?.userId).toBe(userId);
+      vi.mocked(Task.findOne).mockImplementation(async (options: unknown) => {
+        const opts = options as { where?: { userId?: string } } | undefined;
+        expect(opts?.where?.userId).toBe(userId);
         return null;
       });
 
