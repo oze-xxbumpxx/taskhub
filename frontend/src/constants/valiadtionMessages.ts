@@ -27,4 +27,8 @@ export const ERROR_MESSAGES = {
   PASSWORD: {
     MISMATCH: "パスワードが一致しません",
   },
+
+  AUTH: {
+    LOGIN_FAILED: "ログインに失敗しました",
+  },
 } as const;

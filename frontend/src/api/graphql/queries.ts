@@ -18,7 +18,7 @@ export const GET_TASKS = gql`
   query GetTasks(
     $filters: TaskFilters
     $sort: TaskSort
-    $pagination: Pagination
+    $pagination: PaginationInput
   ) {
     getTasks(filters: $filters, sort: $sort, pagination: $pagination) {
       success
@@ -69,12 +69,8 @@ export const GET_TASK = gql`
 
 // プロジェクト関連クエリ
 export const GET_PROJECTS = gql`
-  query GetProjects(
-    $filters: ProjectFilters
-    $sort: ProjectSort
-    $pagination: Pagination
-  ) {
-    getProjects(filters: $filters, sort: $sort, pagination: $pagination) {
+  query GetProjects {
+    getProjects {
       success
       projects {
         id

@@ -2,10 +2,16 @@ import { ApolloProvider } from "@apollo/client";
 import { apolloClient } from "@/api/client";
 import { AuthProvider, useAuth } from "@/hooks";
 import "./App.css";
+import { LoginForm } from "./components/auth/LoginForm";
+import { Dashboard } from "./pages/Dashboard";
+import { useState } from "react";
+import { RegisterForm } from "./components/auth/RegisterForm";
 
+type AuthView = "login" | "register";
 // メインコンテンツ（認証状態に応じて表示を切り替え）
 function MainContent() {
   const { user, isAuthenticated, isLoading, logout } = useAuth();
+  const [authView, setAuthView] = useState<AuthView>("login");
 
   if (isLoading) {
     return (
@@ -19,8 +25,20 @@ function MainContent() {
     return (
       <div className="welcome">
         <h1>Welcome to TaskHub</h1>
-        <p>Please login to continue</p>
-        {/* TODO: ログインフォームを実装 */}
+        {authView === "login" ? (
+          <>
+            <p>Please login to continue</p>
+            <LoginForm onSwitchToRegister={() => setAuthView("register")} />
+          </>
+        ) : (
+          <>
+            <p>Create your account</p>
+            <RegisterForm
+              onSuccess={() => setAuthView("login")}
+              onSwitchToLogin={() => setAuthView("login")}
+            />
+          </>
+        )}
       </div>
     );
   }
@@ -37,8 +55,7 @@ function MainContent() {
         </div>
       </header>
       <main className="main">
-        <p>Dashboard content will be here</p>
-        {/* TODO: ダッシュボードコンテンツを実装 */}
+        <Dashboard />
       </main>
     </div>
   );

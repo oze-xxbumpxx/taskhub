@@ -1,24 +1,24 @@
-import type { FieldError } from "@/types";
-import { Input, Button } from "@/components";
 import { useAuth } from "@/hooks";
-import { loginSchema } from "@/schemas/auth";
+import { registerSchema } from "@/schemas/auth";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, type SubmitHandler } from "react-hook-form";
-import { z } from "zod";
-import { ERROR_MESSAGES } from "@/constants";
+import type z from "zod";
+import { Input } from "../Input";
+import { Button } from "../Button";
+import type { FieldError } from "@/types";
 
-interface LoginFormProps {
+interface RegisterFormProps {
   onSuccess?: () => void;
-  onSwitchToRegister?: () => void;
+  onSwitchToLogin?: () => void;
 }
 
-type LoginFormValues = z.infer<typeof loginSchema>;
+type RegisterFormValues = z.infer<typeof registerSchema>;
 
-export const LoginForm = ({
+export const RegisterForm = ({
   onSuccess,
-  onSwitchToRegister,
-}: LoginFormProps) => {
-  const { login } = useAuth();
+  onSwitchToLogin,
+}: RegisterFormProps) => {
+  const { register: registerUser } = useAuth();
 
   const {
     register,
@@ -26,17 +26,19 @@ export const LoginForm = ({
     setError,
     clearErrors,
     formState: { errors, isSubmitting },
-  } = useForm<LoginFormValues>({
-    resolver: zodResolver(loginSchema),
-    defaultValues: { email: "", password: "" },
+  } = useForm<RegisterFormValues>({
+    resolver: zodResolver(registerSchema),
+    defaultValues: {
+      name: "",
+      email: "",
+      password: "",
+      confirmPassword: "",
+    },
   });
 
   const applyServerErrors = (serverErrors: FieldError[] | undefined) => {
     if (!serverErrors || serverErrors.length === 0) {
-      setError("root", {
-        type: "server",
-        message: ERROR_MESSAGES.AUTH.LOGIN_FAILED,
-      });
+      setError("root", { type: "server", message: "登録に失敗しました" });
       return;
     }
 
@@ -49,20 +51,22 @@ export const LoginForm = ({
         setError("email", { type: "server", message });
         continue;
       }
-      if (field === "password") {
-        setError("password", { type: "server", message });
+      if (field === "name") {
+        setError("name", { type: "server", message });
         continue;
       }
-
-      // 想定外のfieldはフォーム全体エラーに寄せる
       setError("root", { type: "server", message });
     }
   };
 
-  const onSubmit: SubmitHandler<LoginFormValues> = async (values) => {
+  const onSubmit: SubmitHandler<RegisterFormValues> = async (values) => {
     clearErrors("root");
 
-    const result = await login(values.email, values.password);
+    const result = await registerUser(
+      values.email,
+      values.password,
+      values.name
+    );
     if (result.success) {
       onSuccess?.();
       return;
@@ -74,21 +78,29 @@ export const LoginForm = ({
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="login-form" noValidate>
       <Input
-        label="メールアドレス"
-        type="email"
-        autoComplete="email"
+        label="名前"
+        type="text"
+        autoComplete="name"
         disabled={isSubmitting}
-        error={errors.email?.message}
-        {...register("email")}
+        error={errors.name?.message}
+        {...register("name")}
       />
 
       <Input
         label="パスワード"
         type="password"
-        autoComplete="current-password"
+        autoComplete="new-password"
         disabled={isSubmitting}
         error={errors.password?.message}
         {...register("password")}
+      />
+      <Input
+        label="パスワード（確認）"
+        type="password"
+        autoComplete="new-password"
+        disabled={isSubmitting}
+        error={errors.confirmPassword?.message}
+        {...register("confirmPassword")}
       />
 
       {errors.root?.message && (
@@ -98,17 +110,17 @@ export const LoginForm = ({
       )}
 
       <Button type="submit" isLoading={isSubmitting} className="login-submit">
-        ログイン
+        登録
       </Button>
 
-      {onSwitchToRegister && (
+      {onSwitchToLogin && (
         <button
           type="button"
           className="switch-link"
-          onClick={onSwitchToRegister}
+          onClick={onSwitchToLogin}
           disabled={isSubmitting}
         >
-          アカウントをお持ちでない方はこちら
+          すでにアカウントをお持ちの方はこちら
         </button>
       )}
     </form>

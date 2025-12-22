@@ -2,12 +2,16 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-# Install dependencies
-COPY package.json ./
-RUN npm install
+# Toolchain for native addons (bcrypt) on Alpine
+RUN apk add --no-cache python3 make g++
 
-# Copy source code
-COPY . .
+# Install dependencies (container-native node_modules)
+COPY package.json package-lock.json ./
+RUN npm ci
+
+# Copy only what we need (avoid copying host node_modules)
+COPY src ./src
+COPY tsconfig.json ./
 
 # Expose port
 EXPOSE 4000
