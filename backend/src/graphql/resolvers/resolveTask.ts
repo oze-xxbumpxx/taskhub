@@ -29,6 +29,7 @@ const Query = {
     context: AuthContext
   ) => {
     try {
+      void parent;
       // 認証チェック
       let authResult: unknown;
       try {
@@ -111,6 +112,7 @@ const Query = {
     context: AuthContext
   ) => {
     try {
+      void parent;
       // 認証チェック
       let authResult: unknown;
       try {
@@ -176,6 +178,7 @@ const Mutation = {
     context: AuthContext
   ): Promise<TaskResponse> => {
     try {
+      void parent;
       // 認証チェック
       let authResult: unknown;
       try {
@@ -276,6 +279,7 @@ const Mutation = {
     context: AuthContext
   ): Promise<TaskResponse> => {
     try {
+      void parent;
       // 認証チェック
       const authResult = authMiddleware(context);
       if (!authResult) {
@@ -390,6 +394,7 @@ const Mutation = {
   ): Promise<TaskResponse> => {
     let t: Transaction | null = null;
     try {
+      void parent;
       // 認証チェック
       const authResult = authMiddleware(context);
       if (!authResult) {

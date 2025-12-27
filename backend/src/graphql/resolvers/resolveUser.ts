@@ -39,6 +39,8 @@ const Query = {
     updatedAt: Date;
   } | null> => {
     try {
+      void parent;
+      void args;
       // JWTトークン検証
       const authResult = authMiddleware(context);
       if (!authResult) {
@@ -78,6 +80,8 @@ const Query = {
   // 特定のユーザー情報取得
   user: async (parent: unknown, args: { id: string }, context: unknown) => {
     try {
+      void parent;
+      void context;
       const id = String(args.id || "").trim();
       if (!id) {
         throw new Error("Invalid user id");
@@ -115,6 +119,8 @@ const Mutation = {
     context: unknown
   ): Promise<UserResponse> => {
     try {
+      void parent;
+      void context;
       const { email, password, name } = args.input;
 
       // 入力値の検証
@@ -183,6 +189,8 @@ const Mutation = {
     context: unknown
   ): Promise<UserResponse | AuthPayload> => {
     try {
+      void parent;
+      void context;
       const { email, password } = args.input;
       if (!email || !password) {
         return {

@@ -8,6 +8,33 @@ const isJWTPayload = (decoded: any): decoded is JWTPayload => {
     decoded && typeof decoded === "object" && typeof decoded.userId === "string"
   );
 };
+
+const DURATION_RE = /^(?<value>\d+)(?<unit>[smhd])?$/;
+
+function toExpiresInSeconds(input: string): number {
+  const trimmed = input.trim();
+  const match = DURATION_RE.exec(trimmed);
+  if (!match?.groups) {
+    throw new Error(`Invalid JWT_EXPIRES_IN format: ${input}`);
+  }
+
+  const value = Number(match.groups.value);
+  if (!Number.isFinite(value) || value <= 0) {
+    throw new Error(`Invalid JWT_EXPIRES_IN value: ${input}`);
+  }
+
+  const unit = match.groups.unit ?? "s";
+  const multiplier =
+    unit === "s"
+      ? 1
+      : unit === "m"
+      ? 60
+      : unit === "h"
+      ? 60 * 60
+      : 60 * 60 * 24;
+
+  return value * multiplier;
+}
 // JWTトークンの検証
 export const authenticateUser = (token: string): JWTPayload => {
   try {
@@ -29,8 +56,13 @@ export const generateToken = (userId: string) => {
   if (!secret || typeof secret !== "string") {
     throw new Error("JWT secret is not configured");
   }
+  const expiresInRaw = config.jwt.expiresIn;
+  if (!expiresInRaw || typeof expiresInRaw !== "string") {
+    throw new Error("JWT expiresIn is not configured");
+  }
+
   const options: SignOptions = {
-    expiresIn: "10m",
+    expiresIn: toExpiresInSeconds(expiresInRaw),
   };
   return jwt.sign({ userId }, secret, options);
 };

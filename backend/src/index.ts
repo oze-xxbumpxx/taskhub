@@ -67,6 +67,7 @@ async function startServer() {
 
   // ヘルスチェックエンドポイント
   app.get("/health", (req, res) => {
+    void req;
     res.json({ status: "ok", message: "TaskHub API is running" });
   });
 

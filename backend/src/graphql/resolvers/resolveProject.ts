@@ -8,7 +8,6 @@ import {
   ProjectResponse,
   ProjectListResponse,
 } from "../../types/project";
-import sequelize from "../../config/database";
 
 // 型ガードヘルパー: authMiddlewareの戻り値がuserIdを持つか検証
 function hasUserId(v: unknown): v is { userId: string } {
@@ -33,6 +32,7 @@ const Query = {
     context: AuthContext
   ): Promise<ProjectListResponse> => {
     try {
+      void parent;
       // 認証チェック
       const authResult = authMiddleware(context);
       if (!authResult) {
@@ -122,6 +122,7 @@ const Query = {
     context: AuthContext
   ): Promise<ProjectResponse> => {
     try {
+      void parent;
       // 認証チェック
       const authResult = authMiddleware(context);
       if (!authResult) {
@@ -171,7 +172,6 @@ const Query = {
   },
 };
 
-
 const Mutation = {
   // プロジェクト作成
   createProject: async (
@@ -180,6 +180,7 @@ const Mutation = {
     context: AuthContext
   ): Promise<ProjectResponse> => {
     try {
+      void parent;
       // 認証チェック
       const authResult = authMiddleware(context);
       if (!authResult) {
@@ -263,6 +264,7 @@ const Mutation = {
     context: AuthContext
   ): Promise<ProjectResponse> => {
     try {
+      void parent;
       // 認証チェック
       const authResult = authMiddleware(context);
       if (!authResult) {
@@ -368,6 +370,7 @@ const Mutation = {
     context: AuthContext
   ): Promise<ProjectResponse> => {
     try {
+      void parent;
       // 認証チェック
       const authResult = authMiddleware(context);
       if (!authResult) {
