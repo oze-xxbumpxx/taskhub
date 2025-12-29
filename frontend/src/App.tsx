@@ -33,10 +33,7 @@ function MainContent() {
         ) : (
           <>
             <p>Create your account</p>
-            <RegisterForm
-              onSuccess={() => setAuthView("login")}
-              onSwitchToLogin={() => setAuthView("login")}
-            />
+            <RegisterForm onSwitchToLogin={() => setAuthView("login")} />
           </>
         )}
       </div>

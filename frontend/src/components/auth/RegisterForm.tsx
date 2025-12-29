@@ -2,11 +2,10 @@ import { useAuth } from "@/hooks";
 import { registerSchema } from "@/schemas/auth";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, type SubmitHandler } from "react-hook-form";
-import type z from "zod";
 import { Input } from "../Input";
 import { Button } from "../Button";
 import type { FieldError } from "@/types";
-
+import { z } from "zod";
 interface RegisterFormProps {
   onSuccess?: () => void;
   onSwitchToLogin?: () => void;
@@ -18,7 +17,7 @@ export const RegisterForm = ({
   onSuccess,
   onSwitchToLogin,
 }: RegisterFormProps) => {
-  const { register: registerUser } = useAuth();
+  const { register: registerUser, login } = useAuth();
 
   const {
     register,
@@ -62,17 +61,27 @@ export const RegisterForm = ({
   const onSubmit: SubmitHandler<RegisterFormValues> = async (values) => {
     clearErrors("root");
 
-    const result = await registerUser(
+    const registerResult = await registerUser(
       values.email,
       values.password,
       values.name
     );
-    if (result.success) {
-      onSuccess?.();
+    if (!registerResult.success) {
+      applyServerErrors(registerResult.errors);
       return;
     }
 
-    applyServerErrors(result.errors);
+    const loginResult = await login(values.email, values.password);
+    if (!loginResult.success) {
+      setError("root", {
+        type: "server",
+        message:
+          "登録は完了しましたが、自動ログインに失敗しました。ログインしてください。",
+      });
+      return;
+    }
+
+    onSuccess?.();
   };
 
   return (
@@ -84,6 +93,15 @@ export const RegisterForm = ({
         disabled={isSubmitting}
         error={errors.name?.message}
         {...register("name")}
+      />
+
+      <Input
+        label="メールアドレス"
+        type="email"
+        autoComplete="email"
+        disabled={isSubmitting}
+        error={errors.email?.message}
+        {...register("email")}
       />
 
       <Input
