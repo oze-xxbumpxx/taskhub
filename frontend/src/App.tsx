@@ -2,16 +2,12 @@ import { ApolloProvider } from "@apollo/client";
 import { apolloClient } from "@/api/client";
 import { AuthProvider, useAuth } from "@/hooks";
 import "./App.css";
-import { LoginForm } from "./components/auth/LoginForm";
 import { Dashboard } from "./pages/Dashboard";
-import { useState } from "react";
-import { RegisterForm } from "./components/auth/RegisterForm";
-
-type AuthView = "login" | "register";
+import { is } from "zod/locales";
+import { AuthPage } from "./pages/AuthPage";
 // メインコンテンツ（認証状態に応じて表示を切り替え）
 function MainContent() {
   const { user, isAuthenticated, isLoading, logout } = useAuth();
-  const [authView, setAuthView] = useState<AuthView>("login");
 
   if (isLoading) {
     return (
@@ -22,22 +18,7 @@ function MainContent() {
   }
 
   if (!isAuthenticated) {
-    return (
-      <div className="welcome">
-        <h1>Welcome to TaskHub</h1>
-        {authView === "login" ? (
-          <>
-            <p>Please login to continue</p>
-            <LoginForm onSwitchToRegister={() => setAuthView("register")} />
-          </>
-        ) : (
-          <>
-            <p>Create your account</p>
-            <RegisterForm onSwitchToLogin={() => setAuthView("login")} />
-          </>
-        )}
-      </div>
-    );
+    return <AuthPage />;
   }
 
   return (

@@ -40,3 +40,124 @@
 .read-the-docs {
   color: #888;
 }
+
+/* ===== Auth Page (minimal) ===== */
+.auth-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: #0b1220;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 420px;
+  background: #0f1a2b;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 24px;
+}
+
+/* ===== Form ===== */
+.login-form {
+  display: grid;
+  gap: 14px;
+}
+
+.form-error {
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  color: #fecaca;
+  font-size: 14px;
+}
+
+.switch-link {
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: #93c5fd;
+  text-decoration: underline;
+  cursor: pointer;
+  text-align: left;
+}
+.switch-link:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ===== Input ===== */
+.input-group {
+  display: grid;
+  gap: 6px;
+}
+
+.input-label {
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 14px;
+}
+
+.input-field {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  outline: none;
+}
+
+.input-field:focus {
+  border-color: rgba(59, 130, 246, 0.7);
+}
+
+.input-error {
+  border-color: rgba(239, 68, 68, 0.6);
+}
+
+.error-message {
+  color: #fecaca;
+  font-size: 13px;
+}
+
+/* ===== Button ===== */
+.btn {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.btn-primary {
+  background: #3b82f6;
+  color: #fff;
+}
+
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ===== Auth header ===== */
+.auth-brand {
+  margin: 0 0 6px;
+  font-size: 28px;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: 0.2px;
+}
+
+.auth-subtitle {
+  margin: 0 0 16px;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.65);
+}
