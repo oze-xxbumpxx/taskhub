@@ -8,7 +8,7 @@ import {
   useTasks,
   useUpdateTask,
 } from "@/hooks";
-import type { FieldError, TaskStatus } from "@/types";
+import type { FieldError, Task, TaskPriority, TaskStatus } from "@/types";
 import { useMemo, useState } from "react";
 
 export const Dashboard = () => {
@@ -23,6 +23,7 @@ export const Dashboard = () => {
   const { createTask, loading: creatingTask } = useCreateTask();
   const { deleteTask, loading: deletingTask } = useDeleteTask();
   const { updateTask, loading: updatingTask } = useUpdateTask();
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [deleteProjectErrors, setDeleteProjectErrors] = useState<
     FieldError[] | null
   >(null);
@@ -49,6 +50,11 @@ export const Dashboard = () => {
   const [createProjectErrors, setCreateProjectErrors] = useState<
     FieldError[] | null
   >(null);
+
+  const [editTaskTitle, setEditTaskTitle] = useState("");
+  const [editTaskDescription, setEditTaskDescription] = useState("");
+  const [editTaskPriority, setEditTaskPriority] =
+    useState<TaskPriority>("MEDIUM");
 
   const onCreateTask = async () => {
     setCreateTaskErrors(null);
@@ -173,6 +179,50 @@ export const Dashboard = () => {
       result.errors ?? [
         { field: "general", message: "Failed to update task status" },
       ]
+    );
+  };
+
+  const onStartEditTask = (task: Task) => {
+    setEditingTaskId(task.id);
+    setEditTaskTitle(task.title);
+    setEditTaskDescription(task.description ?? "");
+    setEditTaskPriority(task.priority);
+    setUpdateTaskErrors(null);
+  };
+
+  // 編集をキャンセル
+  const onCancelEditTask = () => {
+    setEditingTaskId(null);
+    setEditTaskTitle("");
+    setEditTaskDescription("");
+    setEditTaskPriority("MEDIUM");
+    setUpdateTaskErrors(null);
+  };
+
+  // 編集を保存
+  const onSaveEditTask = async () => {
+    if (!editingTaskId) return;
+    setUpdateTaskErrors(null);
+
+    const title = editTaskTitle.trim();
+    if (!title) {
+      setUpdateTaskErrors([{ field: "title", message: "Title is required" }]);
+      return;
+    }
+
+    const result = await updateTask(editingTaskId, {
+      title,
+      description: editTaskDescription.trim() || undefined,
+      priority: editTaskPriority,
+    });
+
+    if (result.success) {
+      onCancelEditTask();
+      return;
+    }
+
+    setUpdateTaskErrors(
+      result.errors ?? [{ field: "general", message: "Failed to update task" }]
     );
   };
 
@@ -322,25 +372,83 @@ export const Dashboard = () => {
               <ul>
                 {tasks.map((t) => (
                   <li key={t.id}>
-                    <strong>{t.title}</strong>
-                    <select
-                      value={t.status}
-                      onChange={(e) =>
-                        onUpdateTaskStatus(t.id, e.target.value as TaskStatus)
-                      }
-                      disabled={updatingTask}
-                    >
-                      <option value="TODO">TODO</option>
-                      <option value="IN_PROGRESS">IN_PROGRESS</option>
-                      <option value="DONE">DONE</option>
-                    </select>
-                    <button
-                      type="button"
-                      onClick={() => onDeleteTask(t.id)}
-                      disabled={deletingTask}
-                    >
-                      Delete
-                    </button>
+                    {editingTaskId === t.id ? (
+                      // 編集モード
+                      <>
+                        <Input
+                          label="Title"
+                          value={editTaskTitle}
+                          onChange={(e) => setEditTaskTitle(e.target.value)}
+                          disabled={updatingTask}
+                        />
+                        <Input
+                          label="Description"
+                          value={editTaskDescription}
+                          onChange={(e) =>
+                            setEditTaskDescription(e.target.value)
+                          }
+                          disabled={updatingTask}
+                        />
+                        <select
+                          value={editTaskPriority}
+                          onChange={(e) =>
+                            setEditTaskPriority(e.target.value as TaskPriority)
+                          }
+                          disabled={updatingTask}
+                        >
+                          <option value="LOW">LOW</option>
+                          <option value="MEDIUM">MEDIUM</option>
+                          <option value="HIGH">HIGH</option>
+                        </select>
+                        <Button
+                          type="button"
+                          onClick={onSaveEditTask}
+                          isLoading={updatingTask}
+                        >
+                          Save
+                        </Button>
+                        <Button
+                          type="button"
+                          onClick={onCancelEditTask}
+                          disabled={updatingTask}
+                        >
+                          Cancel
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <strong>{t.title}</strong>
+                        <span>{t.priority}</span>
+                        <select
+                          value={t.status}
+                          onChange={(e) =>
+                            onUpdateTaskStatus(
+                              t.id,
+                              e.target.value as TaskStatus
+                            )
+                          }
+                          disabled={updatingTask}
+                        >
+                          <option value="TODO">TODO</option>
+                          <option value="IN_PROGRESS">IN_PROGRESS</option>
+                          <option value="DONE">DONE</option>
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => onStartEditTask(t)}
+                          disabled={updatingTask || editingTaskId !== null}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onDeleteTask(t.id)}
+                          disabled={deletingTask || editingTaskId !== null}
+                        >
+                          Delete
+                        </button>
+                      </>
+                    )}
                   </li>
                 ))}
               </ul>
