@@ -3,10 +3,12 @@ import {
   useCreateProject,
   useCreateTask,
   useDeleteProject,
+  useDeleteTask,
   useProjects,
   useTasks,
+  useUpdateTask,
 } from "@/hooks";
-import type { FieldError } from "@/types";
+import type { FieldError, TaskStatus } from "@/types";
 import { useMemo, useState } from "react";
 
 export const Dashboard = () => {
@@ -19,10 +21,19 @@ export const Dashboard = () => {
   const { createProject, loading: creatingProject } = useCreateProject();
   const { deleteProject, loading: deletingProject } = useDeleteProject();
   const { createTask, loading: creatingTask } = useCreateTask();
+  const { deleteTask, loading: deletingTask } = useDeleteTask();
+  const { updateTask, loading: updatingTask } = useUpdateTask();
   const [deleteProjectErrors, setDeleteProjectErrors] = useState<
     FieldError[] | null
   >(null);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
+    null
+  );
+  const [deleteTaskErrors, setDeleteTaskErrors] = useState<FieldError[] | null>(
+    null
+  );
+
+  const [updateTaskErrors, setUpdateTaskErrors] = useState<FieldError[] | null>(
     null
   );
 
@@ -129,7 +140,38 @@ export const Dashboard = () => {
 
     setDeleteProjectErrors(
       result.errors ?? [
-        { field: "general", message: "Failed to delete projecrt" },
+        { field: "general", message: "Failed to delete project" },
+      ]
+    );
+  };
+
+  const onDeleteTask = async (taskId: string) => {
+    setDeleteTaskErrors(null);
+
+    const ok = window.confirm("このタスクを削除しますか？");
+    if (!ok) return;
+
+    const result = await deleteTask(taskId);
+    if (result.success) {
+      return;
+    }
+
+    setDeleteTaskErrors(
+      result.errors ?? [{ field: "general", message: "Failed to delete task" }]
+    );
+  };
+
+  const onUpdateTaskStatus = async (taskId: string, newStatus: TaskStatus) => {
+    setUpdateTaskErrors(null);
+
+    const result = await updateTask(taskId, { status: newStatus });
+    if (result.success) {
+      return;
+    }
+
+    setUpdateTaskErrors(
+      result.errors ?? [
+        { field: "general", message: "Failed to update task status" },
       ]
     );
   };
@@ -258,6 +300,22 @@ export const Dashboard = () => {
 
         {!tasksLoading && !tasksError && (
           <>
+            {deleteTaskErrors?.length ? (
+              <div role="alert">
+                {deleteTaskErrors.map((e, i) => (
+                  <div key={`${e.field}-${i}`}>{e.message}</div>
+                ))}
+              </div>
+            ) : null}
+
+            {updateTaskErrors?.length ? (
+              <div role="alert">
+                {updateTaskErrors.map((e, i) => (
+                  <div key={`${e.field}-${i}`}>{e.message}</div>
+                ))}
+              </div>
+            ) : null}
+
             {tasks.length === 0 ? (
               <p>No tasks found</p>
             ) : (
@@ -265,6 +323,24 @@ export const Dashboard = () => {
                 {tasks.map((t) => (
                   <li key={t.id}>
                     <strong>{t.title}</strong>
+                    <select
+                      value={t.status}
+                      onChange={(e) =>
+                        onUpdateTaskStatus(t.id, e.target.value as TaskStatus)
+                      }
+                      disabled={updatingTask}
+                    >
+                      <option value="TODO">TODO</option>
+                      <option value="IN_PROGRESS">IN_PROGRESS</option>
+                      <option value="DONE">DONE</option>
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => onDeleteTask(t.id)}
+                      disabled={deletingTask}
+                    >
+                      Delete
+                    </button>
                   </li>
                 ))}
               </ul>
