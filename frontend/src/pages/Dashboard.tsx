@@ -6,9 +6,16 @@ import {
   useDeleteTask,
   useProjects,
   useTasks,
+  useUpdateProject,
   useUpdateTask,
 } from "@/hooks";
-import type { FieldError, Task, TaskPriority, TaskStatus } from "@/types";
+import type {
+  FieldError,
+  Project,
+  Task,
+  TaskPriority,
+  TaskStatus,
+} from "@/types";
 import { useMemo, useState } from "react";
 
 export const Dashboard = () => {
@@ -23,6 +30,7 @@ export const Dashboard = () => {
   const { createTask, loading: creatingTask } = useCreateTask();
   const { deleteTask, loading: deletingTask } = useDeleteTask();
   const { updateTask, loading: updatingTask } = useUpdateTask();
+  const { updateProject, loading: updatingProject } = useUpdateProject();
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [deleteProjectErrors, setDeleteProjectErrors] = useState<
     FieldError[] | null
@@ -37,12 +45,16 @@ export const Dashboard = () => {
   const [updateTaskErrors, setUpdateTaskErrors] = useState<FieldError[] | null>(
     null
   );
-
-  const [taskTitle, setTaskTitle] = useState("");
-  const [taskDescription, setTaskDescription] = useState("");
   const [createTaskErrors, setCreateTaskErrors] = useState<FieldError[] | null>(
     null
   );
+
+  const [updateProjectErrors, setUpdateProjectErrors] = useState<
+    FieldError[] | null
+  >(null);
+
+  const [taskTitle, setTaskTitle] = useState("");
+  const [taskDescription, setTaskDescription] = useState("");
 
   const [projectName, setProjectName] = useState("");
   const [projectDescription, setProjectDescription] = useState("");
@@ -55,6 +67,11 @@ export const Dashboard = () => {
   const [editTaskDescription, setEditTaskDescription] = useState("");
   const [editTaskPriority, setEditTaskPriority] =
     useState<TaskPriority>("MEDIUM");
+
+  const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
+  const [editProjectName, setEditProjectName] = useState("");
+  const [editProjectDescription, setEditProjectDescription] = useState("");
+  const [editProjectColor, setEditProjectColor] = useState("#3B82F6");
 
   const onCreateTask = async () => {
     setCreateTaskErrors(null);
@@ -226,6 +243,53 @@ export const Dashboard = () => {
     );
   };
 
+  const onStartEditProject = (project: Project) => {
+    setEditingProjectId(project.id);
+    setEditProjectName(project.name);
+    setEditProjectDescription(project.description ?? "");
+    setEditProjectColor(project.color ?? "#3B82F6");
+    setUpdateProjectErrors(null);
+  };
+
+  // プロジェクト編集キャンセル
+  const onCancelEditProject = () => {
+    setEditingProjectId(null);
+    setEditProjectName("");
+    setEditProjectDescription("");
+    setEditProjectColor("#3B82F6");
+    setUpdateProjectErrors(null);
+  };
+
+  // 編集保存
+  const onSaveEditProject = async () => {
+    if (!editingProjectId) return;
+
+    setUpdateProjectErrors(null);
+
+    const name = editProjectName.trim();
+    if (!name) {
+      setUpdateProjectErrors([{ field: "name", message: "Name is required" }]);
+      return;
+    }
+
+    const result = await updateProject(editingProjectId, {
+      name,
+      description: editProjectDescription.trim() || undefined,
+      color: editProjectColor,
+    });
+
+    if (result.success) {
+      onCancelEditProject();
+      return;
+    }
+
+    setUpdateProjectErrors(
+      result.errors ?? [
+        { field: "general", message: "Failed to update project" },
+      ]
+    );
+  };
+
   const taskFilters = useMemo(() => {
     if (!effectiveSelectedProjectId) return undefined;
     return {
@@ -250,6 +314,13 @@ export const Dashboard = () => {
         {deleteProjectErrors?.length ? (
           <div role="alert">
             {deleteProjectErrors.map((e, i) => (
+              <div key={`${e.field}-${i}`}>{e.message}</div>
+            ))}
+          </div>
+        ) : null}
+        {updateProjectErrors?.length ? (
+          <div role="alert">
+            {updateProjectErrors.map((e, i) => (
               <div key={`${e.field}-${i}`}>{e.message}</div>
             ))}
           </div>
@@ -296,19 +367,69 @@ export const Dashboard = () => {
           <ul>
             {projects.map((p) => (
               <li key={p.id}>
-                <button
-                  type="button"
-                  onClick={() => setSelectedProjectId(p.id)}
-                >
-                  {p.name}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onDeleteProject(p.id)}
-                  disabled={deletingProject}
-                >
-                  Delete
-                </button>
+                {editingProjectId === p.id ? (
+                  // 編集モード
+                  <>
+                    <Input
+                      label="Name"
+                      value={editProjectName}
+                      onChange={(e) => setEditProjectName(e.target.value)}
+                      disabled={updatingProject}
+                    />
+                    <Input
+                      label="Description"
+                      value={editProjectDescription}
+                      onChange={(e) =>
+                        setEditProjectDescription(e.target.value)
+                      }
+                      disabled={updatingProject}
+                    />
+                    <Input
+                      label="Color"
+                      value={editProjectColor}
+                      onChange={(e) => setEditProjectColor(e.target.value)}
+                      disabled={updatingProject}
+                    />
+                    <Button
+                      type="button"
+                      onClick={onSaveEditProject}
+                      isLoading={updatingProject}
+                    >
+                      Save
+                    </Button>
+                    <button
+                      type="button"
+                      onClick={onCancelEditProject}
+                      disabled={updatingProject}
+                    >
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  // 表示モード
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedProjectId(p.id)}
+                    >
+                      {p.name}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onStartEditProject(p)}
+                      disabled={updatingProject || editingProjectId !== null}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onDeleteProject(p.id)}
+                      disabled={deletingProject || editingProjectId !== null}
+                    >
+                      Delete
+                    </button>
+                  </>
+                )}
               </li>
             ))}
           </ul>
