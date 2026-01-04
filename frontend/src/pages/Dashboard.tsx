@@ -1,4 +1,5 @@
-import { Button, Input } from "@/components";
+import { ProjectForm, ProjectItem } from "@/components/projects";
+import { TaskForm, TaskItem } from "@/components/tasks";
 import {
   useCreateProject,
   useCreateTask,
@@ -26,9 +27,9 @@ export const Dashboard = () => {
   } = useProjects();
 
   const { createProject, loading: creatingProject } = useCreateProject();
-  const { deleteProject, loading: deletingProject } = useDeleteProject();
+  const { deleteProject } = useDeleteProject();
   const { createTask, loading: creatingTask } = useCreateTask();
-  const { deleteTask, loading: deletingTask } = useDeleteTask();
+  const { deleteTask } = useDeleteTask();
   const { updateTask, loading: updatingTask } = useUpdateTask();
   const { updateProject, loading: updatingProject } = useUpdateProject();
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
@@ -53,12 +54,6 @@ export const Dashboard = () => {
     FieldError[] | null
   >(null);
 
-  const [taskTitle, setTaskTitle] = useState("");
-  const [taskDescription, setTaskDescription] = useState("");
-
-  const [projectName, setProjectName] = useState("");
-  const [projectDescription, setProjectDescription] = useState("");
-  const [projectColor, setProjectColor] = useState("#3B82F6");
   const [createProjectErrors, setCreateProjectErrors] = useState<
     FieldError[] | null
   >(null);
@@ -73,10 +68,13 @@ export const Dashboard = () => {
   const [editProjectDescription, setEditProjectDescription] = useState("");
   const [editProjectColor, setEditProjectColor] = useState("#3B82F6");
 
-  const onCreateTask = async () => {
+  const onCreateTask = async (data: {
+    title: string;
+    description?: string;
+  }) => {
     setCreateTaskErrors(null);
 
-    const title = taskTitle.trim();
+    const title = data.title.trim();
     if (!title) {
       setCreateTaskErrors([{ field: "title", message: "Title is required" }]);
       return;
@@ -91,13 +89,11 @@ export const Dashboard = () => {
 
     const result = await createTask({
       title,
-      description: taskDescription.trim() ? taskDescription.trim() : undefined,
+      description: data.description,
       projectId: effectiveSelectedProjectId,
     });
 
     if (result.success) {
-      setTaskTitle("");
-      setTaskDescription("");
       return;
     }
 
@@ -105,20 +101,22 @@ export const Dashboard = () => {
       result.errors ?? [{ field: "general", message: "Failed to create task" }]
     );
   };
-  const onCreateProject = async () => {
+  const onCreateProject = async (data: {
+    name: string;
+    description?: string;
+    color: string;
+  }) => {
     setCreateProjectErrors(null);
 
-    const name = projectName.trim();
+    const name = data.name.trim();
     if (!name) {
       setCreateProjectErrors([{ field: "name", message: "Name is required" }]);
       return;
     }
     const result = await createProject({
       name,
-      description: projectDescription.trim()
-        ? projectDescription.trim()
-        : undefined,
-      color: projectColor,
+      description: data.description,
+      color: data.color,
     });
 
     if (result.success) {
@@ -126,9 +124,6 @@ export const Dashboard = () => {
       if (newProjectId) {
         setSelectedProjectId(newProjectId);
       }
-      setProjectName("");
-      setProjectDescription("");
-      setProjectColor("#3B82F6");
       return;
     }
 
@@ -207,6 +202,14 @@ export const Dashboard = () => {
     setUpdateTaskErrors(null);
   };
 
+  const onEditTaskChange = (
+    field: "title" | "description" | "priority",
+    value: string
+  ) => {
+    if (field === "title") setEditTaskTitle(value);
+    if (field === "description") setEditTaskDescription(value);
+    if (field === "priority") setEditTaskPriority(value as TaskPriority);
+  };
   // 編集をキャンセル
   const onCancelEditTask = () => {
     setEditingTaskId(null);
@@ -241,6 +244,15 @@ export const Dashboard = () => {
     setUpdateTaskErrors(
       result.errors ?? [{ field: "general", message: "Failed to update task" }]
     );
+  };
+
+  const onEditProjectChange = (
+    field: "name" | "description" | "color",
+    value: string
+  ) => {
+    if (field === "name") setEditProjectName(value);
+    if (field === "description") setEditProjectDescription(value);
+    if (field === "color") setEditProjectColor(value);
   };
 
   const onStartEditProject = (project: Project) => {
@@ -325,112 +337,34 @@ export const Dashboard = () => {
             ))}
           </div>
         ) : null}
-        {/* {Crete Project Form} */}
-        <div style={{ marginBottom: 16 }}>
-          <Input
-            label="Project name"
-            value={projectName}
-            onChange={(e) => setProjectName(e.target.value)}
-            disabled={creatingProject}
-          />
-          <Input
-            label="Description"
-            value={projectDescription}
-            onChange={(e) => setProjectDescription(e.target.value)}
-            disabled={creatingProject}
-          />
-          <Input
-            label="Color"
-            value={projectColor}
-            onChange={(e) => setProjectColor(e.target.value)}
-            disabled={creatingProject}
-          />
-          {createProjectErrors?.length ? (
-            <div role="alert">
-              {createProjectErrors.map((err, idx) => (
-                <div key={`${err.field}-${idx}`}>{err.message}</div>
-              ))}
-            </div>
-          ) : null}
-
-          <Button
-            type="button"
-            onClick={onCreateProject}
-            isLoading={creatingProject}
-          >
-            Create Project
-          </Button>
-        </div>
+        <ProjectForm
+          onSubmit={onCreateProject}
+          loading={creatingProject}
+          errors={createProjectErrors}
+        ></ProjectForm>
         {projects.length === 0 ? (
           <p>No projects found</p>
         ) : (
           <ul>
             {projects.map((p) => (
-              <li key={p.id}>
-                {editingProjectId === p.id ? (
-                  // 編集モード
-                  <>
-                    <Input
-                      label="Name"
-                      value={editProjectName}
-                      onChange={(e) => setEditProjectName(e.target.value)}
-                      disabled={updatingProject}
-                    />
-                    <Input
-                      label="Description"
-                      value={editProjectDescription}
-                      onChange={(e) =>
-                        setEditProjectDescription(e.target.value)
-                      }
-                      disabled={updatingProject}
-                    />
-                    <Input
-                      label="Color"
-                      value={editProjectColor}
-                      onChange={(e) => setEditProjectColor(e.target.value)}
-                      disabled={updatingProject}
-                    />
-                    <Button
-                      type="button"
-                      onClick={onSaveEditProject}
-                      isLoading={updatingProject}
-                    >
-                      Save
-                    </Button>
-                    <button
-                      type="button"
-                      onClick={onCancelEditProject}
-                      disabled={updatingProject}
-                    >
-                      Cancel
-                    </button>
-                  </>
-                ) : (
-                  // 表示モード
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedProjectId(p.id)}
-                    >
-                      {p.name}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onStartEditProject(p)}
-                      disabled={updatingProject || editingProjectId !== null}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onDeleteProject(p.id)}
-                      disabled={deletingProject || editingProjectId !== null}
-                    >
-                      Delete
-                    </button>
-                  </>
-                )}
-              </li>
+              <ProjectItem
+                key={p.id}
+                project={p}
+                isEditing={editingProjectId === p.id}
+                onSelect={() => setSelectedProjectId(p.id)}
+                onStartEdit={() => onStartEditProject(p)}
+                onCancelEdit={onCancelEditProject}
+                onSaveEdit={onSaveEditProject}
+                onDelete={() => onDeleteProject(p.id)}
+                editValues={{
+                  name: editProjectName,
+                  description: editProjectDescription,
+                  color: editProjectColor,
+                }}
+                onEditChange={onEditProjectChange}
+                loading={updatingProject}
+                disabled={editingProjectId !== null}
+              />
             ))}
           </ul>
         )}
@@ -439,36 +373,14 @@ export const Dashboard = () => {
       <section>
         <h2>Tasks</h2>
         {/* ✅ Create Task Form */}
-        <div style={{ marginBottom: 16 }}>
-          <Input
-            label="Task title"
-            value={taskTitle}
-            onChange={(e) => setTaskTitle(e.target.value)}
-            disabled={creatingTask}
-          />
-          <Input
-            label="Description"
-            value={taskDescription}
-            onChange={(e) => setTaskDescription(e.target.value)}
-            disabled={creatingTask}
-          />
-
-          {createTaskErrors?.length ? (
-            <div role="alert">
-              {createTaskErrors.map((err, idx) => (
-                <div key={`${err.field}-${idx}`}>{err.message}</div>
-              ))}
-            </div>
-          ) : null}
-
-          <Button type="button" onClick={onCreateTask} isLoading={creatingTask}>
-            Create task
-          </Button>
-        </div>
+        <TaskForm
+          onSubmit={onCreateTask}
+          loading={creatingTask}
+          errors={createTaskErrors}
+        />
 
         {tasksLoading && <p>Loading tasks...</p>}
         {tasksError && <p role="alert">Failed to load tasks</p>}
-
         {!tasksLoading && !tasksError && (
           <>
             {deleteTaskErrors?.length ? (
@@ -492,85 +404,26 @@ export const Dashboard = () => {
             ) : (
               <ul>
                 {tasks.map((t) => (
-                  <li key={t.id}>
-                    {editingTaskId === t.id ? (
-                      // 編集モード
-                      <>
-                        <Input
-                          label="Title"
-                          value={editTaskTitle}
-                          onChange={(e) => setEditTaskTitle(e.target.value)}
-                          disabled={updatingTask}
-                        />
-                        <Input
-                          label="Description"
-                          value={editTaskDescription}
-                          onChange={(e) =>
-                            setEditTaskDescription(e.target.value)
-                          }
-                          disabled={updatingTask}
-                        />
-                        <select
-                          value={editTaskPriority}
-                          onChange={(e) =>
-                            setEditTaskPriority(e.target.value as TaskPriority)
-                          }
-                          disabled={updatingTask}
-                        >
-                          <option value="LOW">LOW</option>
-                          <option value="MEDIUM">MEDIUM</option>
-                          <option value="HIGH">HIGH</option>
-                        </select>
-                        <Button
-                          type="button"
-                          onClick={onSaveEditTask}
-                          isLoading={updatingTask}
-                        >
-                          Save
-                        </Button>
-                        <Button
-                          type="button"
-                          onClick={onCancelEditTask}
-                          disabled={updatingTask}
-                        >
-                          Cancel
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <strong>{t.title}</strong>
-                        <span>{t.priority}</span>
-                        <select
-                          value={t.status}
-                          onChange={(e) =>
-                            onUpdateTaskStatus(
-                              t.id,
-                              e.target.value as TaskStatus
-                            )
-                          }
-                          disabled={updatingTask}
-                        >
-                          <option value="TODO">TODO</option>
-                          <option value="IN_PROGRESS">IN_PROGRESS</option>
-                          <option value="DONE">DONE</option>
-                        </select>
-                        <button
-                          type="button"
-                          onClick={() => onStartEditTask(t)}
-                          disabled={updatingTask || editingTaskId !== null}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => onDeleteTask(t.id)}
-                          disabled={deletingTask || editingTaskId !== null}
-                        >
-                          Delete
-                        </button>
-                      </>
-                    )}
-                  </li>
+                  <TaskItem
+                    key={t.id}
+                    task={t}
+                    isEditing={editingTaskId === t.id}
+                    onStartEdit={() => onStartEditTask(t)}
+                    onCancelEdit={onCancelEditTask}
+                    onSaveEdit={onSaveEditTask}
+                    onDelete={() => onDeleteTask(t.id)}
+                    onStatusChange={(status) =>
+                      onUpdateTaskStatus(t.id, status)
+                    }
+                    editValues={{
+                      title: editTaskTitle,
+                      description: editTaskDescription,
+                      priority: editTaskPriority,
+                    }}
+                    onEditChange={onEditTaskChange}
+                    loading={updatingTask}
+                    disabled={editingTaskId !== null}
+                  />
                 ))}
               </ul>
             )}
