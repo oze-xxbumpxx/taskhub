@@ -52,19 +52,25 @@ export const Dashboard = () => {
   if (projectsError) return <p>Failed to load projects</p>;
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "240px 1fr", gap: 16 }}>
-      <aside>
-        <h2>Projects</h2>
+    <div className="flex gap-6 p-6 min-h-screen bg-gray-900">
+      <aside className="w-60 flex-shrink-0">
+        <h2 className="text-xl font-bold text-white mb-4">Projects</h2>
         {/* {Delete Project form} */}
         {projectOps.deleteErrors?.length ? (
-          <div role="alert">
+          <div
+            role="alert"
+            className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm"
+          >
             {projectOps.deleteErrors.map((e, i) => (
               <div key={`${e.field}-${i}`}>{e.message}</div>
             ))}
           </div>
         ) : null}
         {projectEdit.errors?.length ? (
-          <div role="alert">
+          <div
+            role="alert"
+            className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm"
+          >
             {projectEdit.errors.map((e, i) => (
               <div key={`${e.field}-${i}`}>{e.message}</div>
             ))}
@@ -76,9 +82,9 @@ export const Dashboard = () => {
           errors={projectOps.createErrors}
         ></ProjectForm>
         {projects.length === 0 ? (
-          <p>No projects found</p>
+          <p className="text-gray-400 text-sm">No projects found</p>
         ) : (
-          <ul>
+          <ul className="space-y-2">
             {projects.map((p) => (
               <ProjectItem
                 key={p.id}
@@ -99,8 +105,8 @@ export const Dashboard = () => {
         )}
       </aside>
 
-      <section>
-        <h2>Tasks</h2>
+      <section className="flex-1">
+        <h2 className="text-xl font-bold text-white mb-4">Tasks</h2>
         {/* ✅ Create Task Form */}
         <TaskForm
           onSubmit={taskOps.createTask}
@@ -108,12 +114,19 @@ export const Dashboard = () => {
           errors={taskOps.createErrors}
         />
 
-        {tasksLoading && <p>Loading tasks...</p>}
-        {tasksError && <p role="alert">Failed to load tasks</p>}
+        {tasksLoading && <p className="text-gray-400">Loading tasks...</p>}
+        {tasksError && (
+          <p role="alert" className="text-red-400">
+            Failed to load tasks
+          </p>
+        )}
         {!tasksLoading && !tasksError && (
           <>
             {taskOps.deleteErrors?.length ? (
-              <div role="alert">
+              <div
+                role="alert"
+                className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm"
+              >
                 {taskOps.deleteErrors.map((e, i) => (
                   <div key={`${e.field}-${i}`}>{e.message}</div>
                 ))}
@@ -121,7 +134,10 @@ export const Dashboard = () => {
             ) : null}
 
             {taskEdit.errors?.length ? (
-              <div role="alert">
+              <div
+                role="alert"
+                className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm"
+              >
                 {taskEdit.errors.map((e, i) => (
                   <div key={`${e.field}-${i}`}>{e.message}</div>
                 ))}
@@ -129,9 +145,9 @@ export const Dashboard = () => {
             ) : null}
 
             {tasks.length === 0 ? (
-              <p>No tasks found</p>
+              <p className="text-gray-400 text-sm">No tasks found</p>
             ) : (
-              <ul>
+              <ul className="space-y-3">
                 {tasks.map((t) => (
                   <TaskItem
                     key={t.id}
