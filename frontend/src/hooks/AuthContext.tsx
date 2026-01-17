@@ -5,7 +5,7 @@ import {
   useMemo,
   type ReactNode,
 } from "react";
-import { useMutation, useQuery, useApolloClient } from "@apollo/client";
+import { useMutation, useQuery, useApolloClient } from "@apollo/client/react";
 import { LOGIN, REGISTER, LOGOUT, GET_USER } from "@/api/graphql";
 import { tokenStorage } from "@/api/client";
 import type { User, FieldError } from "@/types";
@@ -21,9 +21,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // トークンの有無を確認
+  const hasToken = Boolean(tokenStorage.get());
+
   // ユーザー情報取得クエリ
-  useQuery(GET_USER, {
-    skip: !tokenStorage.get(),
+  const { loading: queryLoading } = useQuery(GET_USER, {
+    skip: !hasToken,
     onCompleted: (data) => {
       if (data?.getUser) {
         setUser(data.getUser);
@@ -37,12 +40,20 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     },
   });
 
-  // 初期化時にトークンがなければローディング完了
+  // 初期化時の処理
   useEffect(() => {
-    if (!tokenStorage.get()) {
+    // トークンがない場合、または クエリがスキップされて完了した場合
+    if (!hasToken) {
       setIsLoading(false);
     }
-  }, []);
+  }, [hasToken]);
+
+  // クエリがスキップされた場合のフォールバック
+  useEffect(() => {
+    if (!hasToken && !queryLoading) {
+      setIsLoading(false);
+    }
+  }, [hasToken, queryLoading]);
 
   // ログインミューテーション
   const [loginMutation] = useMutation(LOGIN);

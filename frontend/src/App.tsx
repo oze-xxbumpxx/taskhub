@@ -1,9 +1,8 @@
-import { ApolloProvider } from "@apollo/client";
+import { ApolloProvider } from "@apollo/client/react";
 import { apolloClient } from "@/api/client";
 import { AuthProvider, useAuth } from "@/hooks";
 import "./App.css";
 import { Dashboard } from "./pages/Dashboard";
-import { is } from "zod/locales";
 import { AuthPage } from "./pages/AuthPage";
 // メインコンテンツ（認証状態に応じて表示を切り替え）
 function MainContent() {
