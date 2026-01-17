@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from "@/hooks";
 import "./App.css";
 import { Dashboard } from "./pages/Dashboard";
 import { AuthPage } from "./pages/AuthPage";
+import { Toaster } from "react-hot-toast";
 // メインコンテンツ（認証状態に応じて表示を切り替え）
 function MainContent() {
   const { user, isAuthenticated, isLoading, logout } = useAuth();
@@ -43,6 +44,31 @@ function App() {
     <ApolloProvider client={apolloClient}>
       <AuthProvider>
         <MainContent />
+        <Toaster
+          position="top-right"
+          toastOptions={{
+            duration: 3000,
+            style: {
+              background: "#1f2937",
+              color: "#f3f4f6",
+              border: "1px solid rgba(59, 130, 246, 0.3)",
+              borderRadius: "8px",
+              padding: "12px 16px",
+            },
+            success: {
+              iconTheme: {
+                primary: "#10b981",
+                secondary: "#1f2937",
+              },
+            },
+            error: {
+              iconTheme: {
+                primary: "#ef4444",
+                secondary: "#1f2937",
+              },
+            },
+          }}
+        />
       </AuthProvider>
     </ApolloProvider>
   );

@@ -11,6 +11,30 @@ import { tokenStorage } from "@/api/client";
 import type { User, FieldError } from "@/types";
 import { AuthContext, type AuthContextType } from "./authTypes";
 
+// GraphQLレスポンスの型定義
+interface GetUserResponse {
+  getUser: User | null;
+}
+
+// ログインレスポンスの型定義（Union型）
+interface LoginResponse {
+  login: {
+    token?: string;
+    user?: User;
+    success?: boolean;
+    errors?: FieldError[];
+  };
+}
+
+// 登録レスポンスの型定義
+interface RegisterResponse {
+  register: {
+    success: boolean;
+    user?: User;
+    errors?: FieldError[];
+  };
+}
+
 // プロバイダーコンポーネント
 interface AuthProviderProps {
   children: ReactNode;
@@ -19,47 +43,37 @@ interface AuthProviderProps {
 export const AuthProvider = ({ children }: AuthProviderProps) => {
   const client = useApolloClient();
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
 
-  // トークンの有無を確認
-  const hasToken = Boolean(tokenStorage.get());
+  // トークンがある場合のみローディング状態にする
+  const [isLoading, setIsLoading] = useState(() => Boolean(tokenStorage.get()));
 
-  // ユーザー情報取得クエリ
-  const { loading: queryLoading } = useQuery(GET_USER, {
-    skip: !hasToken,
-    onCompleted: (data) => {
-      if (data?.getUser) {
-        setUser(data.getUser);
-      }
+  // ユーザー情報取得クエリ（v4ではonCompleted/onErrorが廃止）
+  const { data, error } = useQuery<GetUserResponse>(GET_USER, {
+    skip: !isLoading, // トークンがない場合はスキップ
+  });
+
+  // データ取得成功時の処理
+  useEffect(() => {
+    if (data?.getUser) {
+      setUser(data.getUser);
       setIsLoading(false);
-    },
-    onError: () => {
+    }
+  }, [data]);
+
+  // エラー発生時の処理
+  useEffect(() => {
+    if (error) {
       tokenStorage.remove();
       setUser(null);
       setIsLoading(false);
-    },
-  });
-
-  // 初期化時の処理
-  useEffect(() => {
-    // トークンがない場合、または クエリがスキップされて完了した場合
-    if (!hasToken) {
-      setIsLoading(false);
     }
-  }, [hasToken]);
-
-  // クエリがスキップされた場合のフォールバック
-  useEffect(() => {
-    if (!hasToken && !queryLoading) {
-      setIsLoading(false);
-    }
-  }, [hasToken, queryLoading]);
+  }, [error]);
 
   // ログインミューテーション
-  const [loginMutation] = useMutation(LOGIN);
+  const [loginMutation] = useMutation<LoginResponse>(LOGIN);
 
   // 登録ミューテーション
-  const [registerMutation] = useMutation(REGISTER);
+  const [registerMutation] = useMutation<RegisterResponse>(REGISTER);
 
   // ログアウトミューテーション
   const [logoutMutation] = useMutation(LOGOUT);
@@ -78,7 +92,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         const result = data?.login;
 
         // AuthPayload の場合（ログイン成功）
-        if (result?.token) {
+        if (result?.token && result.user) {
           tokenStorage.set(result.token);
           setUser(result.user);
           return { success: true };
