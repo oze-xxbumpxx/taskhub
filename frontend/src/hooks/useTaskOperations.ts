@@ -19,20 +19,20 @@ export const useTaskOperations = ({ projectId }: UseTaskOperationsOptions) => {
   const [createErrors, setCreateErrors] = useState<FieldError[] | null>(null);
   const [deleteErrors, setDeleteErrors] = useState<FieldError[] | null>(null);
 
-  const handleCreate = async (data: CreateTaskData) => {
+  const handleCreate = async (data: CreateTaskData): Promise<boolean> => {
     setCreateErrors(null);
 
     const title = data.title.trim();
     if (!title) {
       setCreateErrors([{ field: "title", message: "Title is required" }]);
-      return;
+      return false;
     }
 
     if (!projectId) {
       setCreateErrors([
         { field: "projectId", message: "Please select a project first" },
       ]);
-      return;
+      return false;
     }
 
     const result = await createTask({
@@ -43,7 +43,7 @@ export const useTaskOperations = ({ projectId }: UseTaskOperationsOptions) => {
 
     if (result.success) {
       toast.success("タスクを作成しました");
-      return;
+      return true;
     }
 
     setCreateErrors(
@@ -53,6 +53,7 @@ export const useTaskOperations = ({ projectId }: UseTaskOperationsOptions) => {
     if (generalError) {
       toast.error(generalError.message);
     }
+    return false;
   };
 
   const handleDelete = async (taskId: string) => {

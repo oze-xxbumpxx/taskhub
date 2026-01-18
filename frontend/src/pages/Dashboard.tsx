@@ -48,8 +48,8 @@ export const Dashboard = () => {
     error: tasksError,
   } = useTasks(taskFilters);
 
-  if (projectLoading) return <p>Loading projects...</p>;
-  if (projectsError) return <p>Failed to load projects</p>;
+  const isInitialProjectsLoading = projectLoading && projects.length === 0;
+  const isInitialTasksLoading = tasksLoading && tasks.length === 0;
 
   return (
     <div className="flex gap-8 p-6 min-h-screen bg-gray-900">
@@ -76,13 +76,32 @@ export const Dashboard = () => {
             ))}
           </div>
         ) : null}
+        {projectsError ? (
+          <div
+            role="alert"
+            className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm"
+          >
+            プロジェクトの読み込みに失敗しました
+          </div>
+        ) : null}
+
         <ProjectForm
           onSubmit={projectOps.createProject}
           loading={projectOps.creating}
           errors={projectOps.createErrors}
-        ></ProjectForm>
-        {projects.length === 0 ? (
-          <p className="text-gray-400 text-sm mt-4">プロジェクトがありません</p>
+        />
+
+        <div className="flex items-center justify-between mt-4">
+          <p className="text-xs text-gray-400">一覧</p>
+          {projectLoading && !isInitialProjectsLoading ? (
+            <p className="text-xs text-gray-400">更新中...</p>
+          ) : null}
+        </div>
+
+        {isInitialProjectsLoading ? (
+          <p className="text-gray-400 text-sm mt-2">Loading projects...</p>
+        ) : projects.length === 0 ? (
+          <p className="text-gray-400 text-sm mt-2">プロジェクトがありません</p>
         ) : (
           <ul className="space-y-2 mt-2">
             {projects.map((p) => (
@@ -114,61 +133,67 @@ export const Dashboard = () => {
           errors={taskOps.createErrors}
         />
 
-        {tasksLoading && <p className="text-gray-400">Loading tasks...</p>}
-        {tasksError && (
-          <p role="alert" className="text-red-400">
-            Failed to load tasks
-          </p>
-        )}
-        {!tasksLoading && !tasksError && (
-          <>
-            {taskOps.deleteErrors?.length ? (
-              <div
-                role="alert"
-                className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm"
-              >
-                {taskOps.deleteErrors.map((e, i) => (
-                  <div key={`${e.field}-${i}`}>{e.message}</div>
-                ))}
-              </div>
-            ) : null}
+        {tasksError ? (
+          <div
+            role="alert"
+            className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm"
+          >
+            タスクの読み込みに失敗しました
+          </div>
+        ) : null}
 
-            {taskEdit.errors?.length ? (
-              <div
-                role="alert"
-                className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm"
-              >
-                {taskEdit.errors.map((e, i) => (
-                  <div key={`${e.field}-${i}`}>{e.message}</div>
-                ))}
-              </div>
-            ) : null}
+        {taskOps.deleteErrors?.length ? (
+          <div
+            role="alert"
+            className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm"
+          >
+            {taskOps.deleteErrors.map((e, i) => (
+              <div key={`${e.field}-${i}`}>{e.message}</div>
+            ))}
+          </div>
+        ) : null}
 
-            {tasks.length === 0 ? (
-              <p className="text-gray-400 text-sm mt-4">タスクがありません</p>
-            ) : (
-              <ul className="space-y-3 mt-2">
-                {tasks.map((t) => (
-                  <TaskItem
-                    key={t.id}
-                    task={t}
-                    isEditing={taskEdit.editingTaskId === t.id}
-                    onStartEdit={() => taskEdit.startEdit(t)}
-                    onCancelEdit={taskEdit.cancelEdit}
-                    onSaveEdit={taskEdit.saveEdit}
-                    onDelete={() => taskOps.deleteTask(t.id)}
-                    onStatusChange={(status) =>
-                      taskEdit.updateStatus(t.id, status)
-                    }
-                    editValues={taskEdit.editValues}
-                    onEditChange={taskEdit.changeField}
-                    loading={taskEdit.loading}
-                    disabled={taskEdit.editingTaskId !== null}
-                  />
-                ))}
-              </ul>
-            )}
-          </>
+        {taskEdit.errors?.length ? (
+          <div
+            role="alert"
+            className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm"
+          >
+            {taskEdit.errors.map((e, i) => (
+              <div key={`${e.field}-${i}`}>{e.message}</div>
+            ))}
+          </div>
+        ) : null}
+
+        <div className="flex items-center justify-between mt-4">
+          <p className="text-xs text-gray-400">一覧</p>
+          {tasksLoading && !isInitialTasksLoading ? (
+            <p className="text-xs text-gray-400">更新中...</p>
+          ) : null}
+        </div>
+
+        {isInitialTasksLoading ? (
+          <p className="text-gray-400 mt-2">Loading tasks...</p>
+        ) : tasks.length === 0 ? (
+          <p className="text-gray-400 text-sm mt-2">タスクがありません</p>
+        ) : (
+          <ul className="space-y-3 mt-2">
+            {tasks.map((t) => (
+              <TaskItem
+                key={t.id}
+                task={t}
+                isEditing={taskEdit.editingTaskId === t.id}
+                onStartEdit={() => taskEdit.startEdit(t)}
+                onCancelEdit={taskEdit.cancelEdit}
+                onSaveEdit={taskEdit.saveEdit}
+                onDelete={() => taskOps.deleteTask(t.id)}
+                onStatusChange={(status) => taskEdit.updateStatus(t.id, status)}
+                editValues={taskEdit.editValues}
+                onEditChange={taskEdit.changeField}
+                loading={taskEdit.loading}
+                disabled={taskEdit.editingTaskId !== null}
+              />
+            ))}
+          </ul>
         )}
       </section>
     </div>

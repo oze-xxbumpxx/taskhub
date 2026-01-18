@@ -33,13 +33,13 @@ export const useProjectOperations = ({
       ? selectedProjectId
       : (projects[0]?.id ?? null);
 
-  const handleCreate = async (data: CreateProjectData) => {
+  const handleCreate = async (data: CreateProjectData): Promise<boolean> => {
     setCreateErrors(null);
 
     const name = data.name.trim();
     if (!name) {
       setCreateErrors([{ field: "name", message: "Name is required" }]);
-      return;
+      return false;
     }
 
     const result = await createProject({
@@ -54,7 +54,7 @@ export const useProjectOperations = ({
         onProjectCreated(newProjectId);
       }
       toast.success("プロジェクトを作成しました");
-      return;
+      return true;
     }
 
     setCreateErrors(
@@ -66,6 +66,7 @@ export const useProjectOperations = ({
     if (generalError) {
       toast.error(generalError.message);
     }
+    return false;
   };
 
   const handleDelete = async (projectId: string) => {

@@ -4,7 +4,7 @@ import { Input } from "../Input";
 import { useState } from "react";
 
 interface TaskFormProps {
-  onSubmit: (data: { title: string; description?: string }) => Promise<void>;
+  onSubmit: (data: { title: string; description?: string }) => Promise<boolean>;
   loading: boolean;
   errors: FieldError[] | null;
 }
@@ -14,10 +14,13 @@ export const TaskForm = ({ onSubmit, loading, errors }: TaskFormProps) => {
   const [description, setDescription] = useState("");
 
   const handleSubmit = async () => {
-    await onSubmit({
+    const ok = await onSubmit({
       title: title.trim(),
       description: description.trim() || undefined,
     });
+    if (!ok) return;
+    setTitle("");
+    setDescription("");
   };
 
   return (

@@ -8,7 +8,7 @@ interface ProjectFormProps {
     name: string;
     description?: string;
     color: string;
-  }) => Promise<void>;
+  }) => Promise<boolean>;
   loading: boolean;
   errors: FieldError[] | null;
 }
@@ -23,12 +23,15 @@ export const ProjectForm = ({
   const [color, setColor] = useState("#3B82F6");
 
   const handleSubmit = async () => {
-    await onSubmit({
+    const ok = await onSubmit({
       name: name.trim(),
       description: description.trim() || undefined,
       color,
     });
-    // 成功時にフォームをリセット（親からコールバックで通知されるか、errorsがnullなら成功と判断）
+    if (!ok) return;
+    setName("");
+    setDescription("");
+    setColor("#3B82F6");
   };
 
   return (
