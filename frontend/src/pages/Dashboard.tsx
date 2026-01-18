@@ -52,9 +52,9 @@ export const Dashboard = () => {
   if (projectsError) return <p>Failed to load projects</p>;
 
   return (
-    <div className="flex gap-6 p-6 min-h-screen bg-gray-900">
-      <aside className="w-60 flex-shrink-0">
-        <h2 className="text-xl font-bold text-white mb-4">Projects</h2>
+    <div className="flex gap-8 p-6 min-h-screen bg-gray-900">
+      <aside className="w-80 flex-shrink-0">
+        <h2 className="text-xl font-bold text-white mb-5">プロジェクト</h2>
         {/* {Delete Project form} */}
         {projectOps.deleteErrors?.length ? (
           <div
@@ -82,9 +82,9 @@ export const Dashboard = () => {
           errors={projectOps.createErrors}
         ></ProjectForm>
         {projects.length === 0 ? (
-          <p className="text-gray-400 text-sm">No projects found</p>
+          <p className="text-gray-400 text-sm mt-4">プロジェクトがありません</p>
         ) : (
-          <ul className="space-y-2">
+          <ul className="space-y-2 mt-2">
             {projects.map((p) => (
               <ProjectItem
                 key={p.id}
@@ -106,7 +106,7 @@ export const Dashboard = () => {
       </aside>
 
       <section className="flex-1">
-        <h2 className="text-xl font-bold text-white mb-4">Tasks</h2>
+        <h2 className="text-xl font-bold text-white mb-5">タスク</h2>
         {/* ✅ Create Task Form */}
         <TaskForm
           onSubmit={taskOps.createTask}
@@ -145,9 +145,9 @@ export const Dashboard = () => {
             ) : null}
 
             {tasks.length === 0 ? (
-              <p className="text-gray-400 text-sm">No tasks found</p>
+              <p className="text-gray-400 text-sm mt-4">タスクがありません</p>
             ) : (
-              <ul className="space-y-3">
+              <ul className="space-y-3 mt-2">
                 {tasks.map((t) => (
                   <TaskItem
                     key={t.id}

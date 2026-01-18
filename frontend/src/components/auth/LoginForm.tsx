@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { z } from "zod";
 import { ERROR_MESSAGES } from "@/constants";
+import toast from "react-hot-toast";
 
 interface LoginFormProps {
   onSuccess?: () => void;
@@ -64,8 +65,16 @@ export const LoginForm = ({
 
     const result = await login(values.email, values.password);
     if (result.success) {
+      toast.success("ログインに成功しました");
       onSuccess?.();
       return;
+    }
+
+    if (result.errors) {
+      const generalError = result.errors.find((e) => e.field === "general");
+      if (generalError) {
+        toast.error(generalError.message);
+      }
     }
 
     applyServerErrors(result.errors);

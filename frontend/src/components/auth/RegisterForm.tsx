@@ -6,6 +6,7 @@ import { Input } from "../Input";
 import { Button } from "../Button";
 import type { FieldError } from "@/types";
 import { z } from "zod";
+import toast from "react-hot-toast";
 interface RegisterFormProps {
   onSuccess?: () => void;
   onSwitchToLogin?: () => void;
@@ -68,7 +69,15 @@ export const RegisterForm = ({
     );
     if (!registerResult.success) {
       applyServerErrors(registerResult.errors);
+      const generalError = registerResult.errors?.find(
+        (e) => e.field === "general"
+      );
+      if (generalError) {
+        toast.error(generalError.message);
+      }
       return;
+    } else {
+      toast.success("アカウントを作成しました");
     }
 
     const loginResult = await login(values.email, values.password);
@@ -79,6 +88,8 @@ export const RegisterForm = ({
           "登録は完了しましたが、自動ログインに失敗しました。ログインしてください。",
       });
       return;
+    } else {
+      toast.success("ログインに成功しました");
     }
 
     onSuccess?.();

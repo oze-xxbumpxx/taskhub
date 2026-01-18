@@ -1,6 +1,7 @@
 import type { FieldError, Project } from "@/types";
 import { useCreateProject, useDeleteProject } from "./useProjects";
 import { useState } from "react";
+import toast from "react-hot-toast";
 
 interface CreateProjectData {
   name: string;
@@ -52,6 +53,7 @@ export const useProjectOperations = ({
       if (newProjectId) {
         onProjectCreated(newProjectId);
       }
+      toast.success("プロジェクトを作成しました");
       return;
     }
 
@@ -60,6 +62,10 @@ export const useProjectOperations = ({
         { field: "general", message: "Failed to create project" },
       ]
     );
+    const generalError = result.errors?.find((e) => e.field === "general");
+    if (generalError) {
+      toast.error(generalError.message);
+    }
   };
 
   const handleDelete = async (projectId: string) => {
@@ -76,6 +82,7 @@ export const useProjectOperations = ({
       if (effectiveSelectedProjectId === projectId) {
         onProjectDeleted(nextSelectedProjectId);
       }
+      toast.success("プロジェクトを削除しました");
       return;
     }
 
@@ -84,6 +91,10 @@ export const useProjectOperations = ({
         { field: "general", message: "Failed to delete project" },
       ]
     );
+    const generalError = result.errors?.find((e) => e.field === "general");
+    if (generalError) {
+      toast.error(generalError.message);
+    }
   };
 
   return {

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useCreateTask, useDeleteTask } from "./useTasks";
 import type { FieldError } from "@/types";
+import toast from "react-hot-toast";
 
 interface CreateTaskData {
   title: string;
@@ -41,12 +42,17 @@ export const useTaskOperations = ({ projectId }: UseTaskOperationsOptions) => {
     });
 
     if (result.success) {
+      toast.success("タスクを作成しました");
       return;
     }
 
     setCreateErrors(
       result.errors ?? [{ field: "general", message: "Failed to create task" }]
     );
+    const generalError = result.errors?.find((e) => e.field === "general");
+    if (generalError) {
+      toast.error(generalError.message);
+    }
   };
 
   const handleDelete = async (taskId: string) => {
@@ -57,12 +63,17 @@ export const useTaskOperations = ({ projectId }: UseTaskOperationsOptions) => {
 
     const result = await deleteTask(taskId);
     if (result.success) {
+      toast.success("タスクを削除しました");
       return;
     }
 
     setDeleteErrors(
       result.errors ?? [{ field: "general", message: "Failed to delete task" }]
     );
+    const generalError = result.errors?.find((e) => e.field === "general");
+    if (generalError) {
+      toast.error(generalError.message);
+    }
   };
 
   return {

@@ -1,6 +1,7 @@
 import type { FieldError, Task, TaskPriority, TaskStatus } from "@/types";
 import { useUpdateTask } from "./useTasks";
 import { useState } from "react";
+import toast from "react-hot-toast";
 
 interface EditValues {
   title: string;
@@ -50,6 +51,7 @@ export const useTaskEdit = () => {
     });
 
     if (result.success) {
+      toast.success("タスクを更新しました");
       cancelEdit();
       return;
     }
@@ -57,6 +59,10 @@ export const useTaskEdit = () => {
     setErrors(
       result.errors ?? [{ field: "general", message: "Failed to update task" }]
     );
+    const generalError = result.errors?.find((e) => e.field === "general");
+    if (generalError) {
+      toast.error(generalError.message);
+    }
   };
 
   const changeField = (
@@ -73,6 +79,7 @@ export const useTaskEdit = () => {
 
     const result = await updateTask(taskId, { status: newStatus });
     if (result.success) {
+      toast.success("タスクのステータスを更新しました");
       return;
     }
 
@@ -81,6 +88,10 @@ export const useTaskEdit = () => {
         { field: "general", message: "Failed to update task status" },
       ]
     );
+    const generalError = result.errors?.find((e) => e.field === "general");
+    if (generalError) {
+      toast.error(generalError.message);
+    }
   };
 
   const editValues: EditValues = {

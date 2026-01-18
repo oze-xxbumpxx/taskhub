@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useUpdateProject } from "./useProjects";
 import type { Project, FieldError } from "@/types";
+import toast from "react-hot-toast";
 
 interface EditValues {
   name: string;
@@ -51,6 +52,7 @@ export const useProjectEdit = () => {
 
     if (result.success) {
       cancelEdit();
+      toast.success("プロジェクトを更新しました");
       return;
     }
 
@@ -59,6 +61,10 @@ export const useProjectEdit = () => {
         { field: "general", message: "Failed to update project" },
       ]
     );
+    const generalError = result.errors?.find((e) => e.field === "general");
+    if (generalError) {
+      toast.error(generalError.message);
+    }
   };
 
   const changeField = (
